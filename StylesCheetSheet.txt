@@ -1,0 +1,77 @@
+CSS Selectors
+
+Selector    property           value
+  a      {  background-color:  yellow;  }
+
+
+
+Colors in CSS
+color: red;
+color: #00ff00;
+color: rgb(0,0, 255);
+
+
+Fonts Family
+Web safe fonts - no need to import
+Example: Arial, Helvetica, sans-serif
+
+
+Box Model
+---------
+                                Top Margin 
+                                Top border         
+                                Top Padding
+Left Margin: Border :Padding       Box           Right Padding Right Border Right Margin
+                                Bottom Padding
+   			                      	Bottom Border
+			                        	Bottom Margin
+
+
+Margin/Padding Short Hand
+
+P{
+margin: top right bottom left
+Or 
+margin: top/bottom left/right
+}
+
+Same for Padding
+
+
+FlexBox Model
+-------------
+ 
+- One dimensional Layout model
+- Space distribution and powerful alignment
+- flex container and flex items. These are are html elements
+- flex items are direct children's of flex container
+- A container is created with display: flex
+
+
+<div class="flex-container>
+    <div>flex item1</div>
+    <div>flex item2</div>
+    <img src="pic.png"/>
+</div>
+
+
+Flex Container Properties: 
+  flex-direction
+  flex-wrap
+  flex-flow
+  flex-content
+  align-items
+  align-content 
+
+Flex Item Properties:
+  order 
+  flex-grow 
+  flex-shrink
+  flex-basis 
+  align-self 
+
+main axis and cross axis
+
+ Justify-content - aligns main axis (horizontal or vertical based on row or column direction)
+ justify-items - align cross acess
+
