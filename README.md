@@ -1,2 +1,0 @@
-# webtechnologies
-explore web technologies
