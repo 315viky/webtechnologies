@@ -1,0 +1,240 @@
+<context : [ component class + meta data + templates and views + template syntax + data binding (interpolation
+              + attribute+event) + pipes + directives ( structural + attribute )
+Introduction to components
+__________________________
+- A component controls a patch of screen called a view
+- Components app logic - what is does to support the view - is defined in a class.
+- Component class interacts with the view through an API of properties and methods.
+
+---------------------------------------------------------------------------------------------
+src/app/hero-list.component.ts(class)
+
+export class HeroListComponent implements onInit {
+  heroes: Hero[];
+  selectedHero: Hero;
+
+  constructor(private service: HeroService) { }
+  
+  ngOnInit() {
+      this.heroes = this.service.getHeroes();
+   }
+
+   selectHero(hero: Hero) { this.selectedHero = hero; }
+}
+/* Example 
+-HeroListComponent has heroes property that holds an array of heroes.
+-selectHero() method sets a selectedHero property when user clicks to chose hero from that list.
+-the component acquires the heroes from a service, which is a TS parameter property on the constructor
+-the service is provided to the component through dependency injection system
+-Angular creates, updates and destroys components as the user moves through the application
+-App can take action at each moment in this life cycle through optional lifecycle hooks, like ngOnInit()
+-------------------------------------------------------------------------
+
+Component metadata
+__________________
+
+- The @component decorator identifies the class immediately below it as a component class and specifies its metadata.
+- Metadata tells angular where to get the major building blocks that it needs to create and present the component
+  and its view.
+- It associates a template with the component either directly with inline code or by reference
+- Together, the component and template describe a view
+-----------------------------------------------------------------------
+Example
+
+@component({
+   selector: 'app-hero-list',  //tells how the component can be referred in the html doc
+   templateUrl: './hero-list.component.html',
+   providers: [ HeroService ]
+})
+export class HeroListComponent implements OnInit {
+/*........*/
+}
+This example shows 
+- selector: A CSS selector that tells angular to create and insert an instance of this component wherever
+  it finds the corresponding tag in template HTML
+  For example, if an app's HTML contains <app-hero-list></app-hero-list>, then Angular inserts an instance 
+  of the HeroListComponent view between those tags.
+
+-templateUrl: The module-relative address of this components HTML template. 
+ Alternatively html template can be provided inline
+ This template defines the components hostview
+
+-providers : An array of providers for services the component requires. In this example it tells ANgular how to 
+ provide the HeroService instance that the components constructor uses to get the list of heroes to display
+
+
+Templates and Views
+___________________
+- Components view is defined with its companion template
+- A template is a form of HTML that tells angular how to render the component
+- Views are typically arranged hierarchically, allowing you to modify or show or hide entire UI sections or pages
+  as a unit.
+- Template immediately associated with a component defines that components host view
+- the component can also define a view hierarchy which contains embedded views hosted by other components
+
+
+
+                     Root Component                           Root Template
+         child A component child A template           child B component child B Template
+         Grand child comp   Grand child temp           
+
+- A view hierarchy can contain views from components of same ngModules or also from different NgModules
+
+Template Syntax ( native html + data binding + pipes + directives )
+_______________
+
+- A template looks like a regular html , and it also contains Angular template syntax, which alters the 
+  HTML based on your app's logic and state of app and DOM data.
+- Template can use 'data binding' to coordinate app and DOM data, pipes to transform data and directives to apply
+  app logic
+
+------------------------------------------------------------------------------------------------------------
+src/app/hero-list.component.html
+
+<h2>Hero List</h2>
+
+<p><i>Pick a hero from the list</i></p>
+<ul>
+   <li *ngFor="let hero of heroes" (click)="selectHero(hero)">
+    {{hero.name}}
+   </li>
+</ul>
+
+<app-hero-detail *ngIf="selectedHero" [hero]="selectedHero"></app-hero-detail>
+
+- This template uses typical HTML elements like <h2><p> and also includes Angular template syntax elements
+  like *ngFor, {{hero.name}}, (click), [hero] and <app-hero-detail>
+- Template syntax elements tells angular how to render HTML to the screen, using program logic and data
+  - *ngFor directive tells Angular to iterate over a list
+  - {{hero.name}}, (click), [hero] bind data to and from the DOM, responding to user input.
+  - <app-hero-detail> tag in the example is an element that represents a new component, HeroDetailsComponent
+    HeroDetailComponent defines hero-detail child view of HeroListComponent
+  - custom components mix seamlessly with native html in the same layout
+
+-----------------------------------------------------------------------------------------------------------
+
+Data binding
+____________
+
+- without a framework, coder is responsible for pushing data values into the HTML controls and turning users
+  responses into actions and value updates
+- Writing such push and pull logic by hand is tedious, error prone and nightmare to read ( Jquery programs)
+
+- Angular supports two way data binding, a mechanism for coordinating the parts of a template with the parts
+  of a component.
+- Add binding markup to the template HTML to tell angular how to connect both sides
+
+The following diagram shows the four forms of data binding markup. Each form has a direction 
+- to the DOM
+- from the DOM
+- both
+                     {{value}}
+                  <------------------------
+                     [property]='value'
+                  <------------------------
+             DOM    (event)='handler'        Component
+                  ------------------------->
+                  [(ng-model)] = 'property'
+                  <------------------------>
+
+---------------------------------------------------------------------------------------------------------
+
+<h2>Hero List</h2>
+
+<p><i>Pick a hero from the list</i></p>
+<ul>
+   <li *ngFor="let hero of heroes" (click)="selectHero(hero)">
+    {{hero.name}}
+   </li>
+</ul>
+
+<app-hero-detail *ngIf="selectedHero" [hero]="selectedHero"></app-hero-detail>
+
+
+- The {{hero.name}} 'interpolation' displays the components hero.name proprty value with in <li> element
+- The [hero] 'property binding' passes the value of selectedHero from the parent HeroListComponent to the
+   hero property of the child HeroDetailComponent
+- The (click) 'event binding' calls the component's selectHero method when the user clicks a hero's name
+----------------------------------------------------------------------------------------------------------
+
+- Two-way data binding( used mainly in template-driven forms ) combines property and event binding in a single
+  notation
+---------------------------------------------------------
+src/app/hero-detail.component.html( ngModel)
+<input [(ngModel)]="hero.name">
+--------------------------------------------------------
+- In two-way binding, a data property value flows to the input box from the component as with property binding.
+  The user's changes also flow back to the component, resetting the property to latest value, as with event binding
+
+- Angular processes all data bindings once for each JavaScript event cycle, from the root of the application
+  component tree through all the child components
+
+- Data binding plays an important role in communication between a template and its component and is also
+  important for communication between parent and child components
+< *I think parent  and child component binding happens through property binding and two way binding>
+
+Angular Pipes
+_____________
+- Angular pipes lets you display-value transformation in your template html
+- A class with @Pipe decorator defines a function that transforms input values to output values for display in a
+  view
+Example - date pipe, currency pipe
+- To specify a value transformation in an HTML template, use pipe operator()
+    {{ interpolated value | pipe_name }}
+- You can chain pipes, sending the output of one pipe function to be transformed by another pipe function.
+- A pipe function can also take arguements that control how it performs its transformation.
+  example - you can pass the desird format to the date pipe
+
+------------------------------------------------------------------------------
+<!--- Default format: output 'Jun 15, 2015' -->
+<p>Today is {{today | date}}</p>
+
+
+<!-- full date format: output 'Monday Jun15, 2015' -->
+<p>Today is {{ today | date:'fullDate'}}</p>
+
+<!--short time format: output '9:43 AM'-->
+</p> The time is {{today|date:'shortTime'}}</p>
+------------------------------------------------------------------------------
+
+Angular Directives
+__________________
+- Angular templates are dynamic. When angular renders them, it transforms the DOM according to the instructions
+  given by directives
+- A directive is a class with @Directive() decorator
+- A Component is technically a directive. Components are so distinctive and central to angular apps that the angular
+  @Component decorator, which extends the @Directive() decorator with template-oriented features
+- In addition to components, there are two other kinds of directives: structural and attribute.
+- You can define your own directive with @directive decorator.
+-Just as for components, the metadata for a directive associated the decorated class with a 'selector' element,
+ that you use to insert into HTML. 
+- In templates, directives typically appear within an element tag as attributes, either by name or as
+  target assignment or a binding
+
+- Structural directives
+  Structural directives alter layout by adding, removing and replacing elements in the DOM.
+  Below example uses two built in structural directives to add application logic to how the view is rendered.
+
+----------------------------------------------------------------------------
+<li *ngFor="let hero of heroes"></li>
+<app-hero-detail *ngIf="selectedHero"></app-hero-detail>
+
+-*ngFOr is an interative, it tells Angular to stem out one <li> per hero in the heroes list
+-*ngIf is a conditional, it includes the HeroDetail component only if a selected hero exists
+
+-----------------------------------------------------------------------------
+- Attributes Directives
+  Attribute directives alter the appearance or behaviour of an existing element. In template they look like regular
+  html attributes
+
+- Example the ngModel directive which implements two-way binding, is an example of an attribute directive
+- ngModel modifies the behaviour of an existing element( typically <input> by setting its display value property and
+  responding to change events
+
+---------------------------------------------------------
+<input [(ngModel)]=hero.name">
+
+---------------------------------------------------------
+
+- Angular has more predefined directives that either alter the layout strucutre( for example, ngSwitch) or
+  modify aspects of DOM elements and components ( for example, ngStyle and ngClass )

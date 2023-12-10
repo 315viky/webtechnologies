@@ -1,0 +1,357 @@
+<Context : [] >
+
+Lifecycle Hooks
+_______________
+- A component has a life cycle managed by Angular
+- Angular creates a component, renders it, creates its children, checks it when its data-bound properties
+  change, and destroys it before removing it from the DOM
+- Angular offers lifecycle hooks that provide visibility into these key life moments and ability to act
+  when they occur
+
+- The same life cycle hooks apply for directives
+
+
+Component lifecycle hooks overview
+__________________________________
+
+- Directive and component instances have a lifecycle as Angular creates, updates and destroys them.
+- Developers can tap into key moments in that lifecycle by implementing one or more of the lifecycle hook
+  interfaces in the Angular core library
+- Each interface has a single hook method whose name is the interface name prefixed with ng.
+
+For example , the OnInit interface has a hook method named ngOnInit() that Angular calls shortly after creating
+the component
+
+peek-a-boo.component.ts
+______________________
+
+export class PeekABoo implements OnInit {
+     constructor(private logger: LoggerService) {}
+
+// implement OnInit's ngOnInit method
+    ngOninit() { this.logIt('OnInit');}
+
+   logIt(msg: string) {
+       this.logger.log('#${nextId++} ${msg}');
+    }
+}
+
+- No directive or component will implement all of the lifecycle hooks.
+- Angular only calls a directive/component hook method if it is defined
+
+
+Lifecycle sequence
+__________________
+
+- After creating a component/directive by calling its constructor, Angular calls the lifecycle hook methods
+  in the following sequence at specific moments
+
+- ngOnChanges() : Respond when Angular (re)sets data-bound input properties. 
+                  The method receives a SimpleChanges object of current and previous property values
+                  
+                  <Called before ngOnInit() and whenever one or more data-bound input properties change>
+
+- ngOnInit() : Initialize the directive/component after Angular first displays the data-bound properties and
+               sets the directive/component's input properties
+               <Called once, after the first ngOnChanges()>.
+
+- ngDoCheck() : Detect and act upon changes that Angular can't or won't detect on its own
+                <Called during every change detection run, immediately after ngOnChanges() and ngOnInit()>
+
+
+- ngAfterContentInit() : Respond after Angular projects external content into the component's view / the view
+                          that a directive is in
+                         <Called once after the first ngDoCheck()>
+
+- ngAfterContentChecked() : Respond after Angular checks the content projected into the directive/component
+                            Called after the ngAfterContentInit() and every subsequent ngDoCheck()
+
+- ngAfterViewInit() : Respond after Angular initializes the component's view and child views/ the view that a 
+                      directive is in
+
+- ngAfterViewChecked() : Respond after Angular checks the component's views and child views/ the view that a 
+                         directive is in
+                      
+                         Called after the ngAfterViewInit() and every subsequent ngAfterContentChecked().
+
+- ngOnDestroy()  :   Cleanup just before Angular destroys the directive/component
+                     Unsubscribe Observables and detach event handlers to avoid memory leak
+
+                     called just before Angular destroys the directive/component
+
+
+Peek-a-boo: all hooks
+_______________________
+https://stackblitz.com/angular/yvvxvakqjge?file=src%2Fapp%2Fpeek-a-boo.component.ts
+
+- The PeekABoo Component demonstrates all of the hooks in one component
+
+Spy OnInit and OnDestroy
+________________________
+<div *ngFor="let hero of heroes" mySpy class="heroes">
+    {{hero}}
+  </div>
+
+- <mySpy> is the directive applied to <div> element and spies on that element
+- mySpy directive defines ngOnInit() and ngDestroy() event hooks which are invoked when the div for the
+  hero is instantiated and destroyed
+- AT the same time mySpy is directive is also destroyed - the ngDestroy method reports its last moments
+
+The ngOnInit() and ngOnDestroy() methods have more vital roles to play in real applications.
+
+OnInit()
+________
+
+- Use ngOnInit() for two reasons:
+- To perform complex initializations after construction
+- To Set up the component after Angular sets the input properties
+
+Experienced developers agree that components should be cheap and safe to construct
+- Avoid complex constructor logic
+- Dont fetch data in a component constructor.
+- You shouldnt worry that a new component will try to contact a remote server when created under test or
+   before you decide to display it
+- Constructors should do no more than set the initial local variables to simple values
+
+
+- An ngOnInit() is a good place for a component to fetch its initial data.
+- Remember also that a directive's data-bound input properties are not set until after construction. Thats
+  a problem if you need to initialize the directive based on those properties
+- They will have been set when ngOnInit() runs
+
+< The ngOnChanges() method is your first opportunity to access the input properties. Angular calls 
+  ngOnChanges() before ngOnInit() and many times after that. It only calls ngOnInit() once.>
+
+- You can count on Angular to call the ngOnInit() method soon after creating the components.
+- Thats where the heavy initialization logic belongs
+
+
+OnDestroy()
+___________
+- Put cleanup logic in ngOnDestroy(), the logic that must run before Angular destroys the directive
+- This is the time to notify another part of the application that the component is going away.
+- This is the place to free resources that wont be garbage collected automatically.
+- Unsubscribe from Observables and DOM events.
+- Stop interval timers
+- Unregister all callbacks that this directive register with global or application services
+
+OnChanges()
+___________
+
+- Angular calls its ngOnChanges() method whenever it detects changes to input properties of the component
+  ( or directive )
+- This example monitors the OnChanges hook
+
+on-changes.component.ts
+_______________________
+
+ngOnChanges(changes: SimpleChanges){
+    for (let propname in changes) {
+       let chng = changes[propName];
+       let cur = JSON.stringify(chng.currentValue);
+       let prev = JSON.stringify(chng.previousValue);
+       this.changeLog.push(`${propName}: currentValue = ${cur}, previousValue = ${prev}`);
+      }
+}
+
+- The ngOnChnages() method takes an object that maps each changed property name to a SimpleChange object
+  holding the current and previous property values.
+
+- input properties looks something like this
+  @Input() hero: Hero;
+  @Input() power: string;
+
+- input property binding
+  <on-changes [hero]="hero" [power]="power"></on-changes>
+
+- hero property here is a reference to the hero object. If any property of hero object changes, its not 
+  detected by angular
+- Only changes in hero object reference will be caught
+
+
+DoCheck()
+_________
+
+- Use the DoCheck hook to detect and act upon changes that Angular doesn't catch on its own
+- Use this method to detect a change that Angular over looked
+   Like hero object name changes which is not detected by onChanges()
+if (this.hero.name !== this.oldHeroName) {
+    this.changeDetected = true;
+    this.changeLog.push(`DoCheck: Hero name changed to "${this.hero.name}" from "${this.oldHeroName}"`);
+    this.oldHeroName = this.hero.name;
+  }
+
+
+- This hook is called with enormous frequency - after every change detection cycle no matter where the 
+  change occurred.
+- Mere mousing into another <input> triggers a call.
+- Implementation of doCheck() must be light weight or the user experience suffers
+
+
+AfterView
+__________
+
+- The AfterView sample explores the AfterViewInit() and AfterViewChecked() hooks that Angular calls after 
+it creates a component's child view
+
+child COmponent
+
+@Component({
+    selector: 'app-child-view',
+    template: '<input [(ngModel)]="hero">'
+   })
+
+export class ChildViewComponent {
+   hero = 'Magneta';
+}
+
+
+The AfterViewComponent displays this child view within its template
+
+
+AfterViewComponent( template )
+______________________________
+template: `
+ <div>-- child view begins --<div>
+ <app-child-view></app-child-view>
+ <div>--child view ends--</div>
+
+The following hooks take action based on changing values within the childview, which can only be reached
+by querying for the child view via the property decorated with @ViewChild
+
+
+AfterViewComponent
+___________________
+
+export class AfterViewComponent implements AfterViewChecked, AfterViewInit {
+   private prevHero = '';
+
+   //query for a VIEW child of type childViewComponent
+   @ViewChild(ChildViewComponent) viewChild: ChildViewComponent;
+
+   ngAfterViewInit() {
+     //viewChild is set after the view has been initialized
+     this.logIt('AfterViewInit');
+     this.doSomething();
+   }
+
+
+   ngAfterViewChecked() {
+    //viewChild is updated after the view has been checked
+    if(this.prevHero === this.viewChild.hero) {
+      this.logIt('AfterViewChecked (no Change )');
+     }else {
+     this.prevHero = this.viewChild.hero;
+     this.logIt(`AfterViewChecked' );
+     this.doSomething();
+    
+  }
+} 
+
+// This surrogate for real business logic sets the `comment`
+private doSomething() {
+  let c = this.viewChild.hero.length > 10 ? `That's a long name` : '';
+  if (c !== this.comment) {
+    // Wait a tick because the component's view has already been checked
+    this.logger.tick_then(() => this.comment = c);
+  }
+}
+
+
+- Angular's unidirectional data flow rule forbids updates to the view after it has been composed. 
+-Both of these hooks fire after the component's view  has been composed.
+
+- Angular throws an error if the hook updates the component's data-bound comment property immediately (try it!).
+- The LoggerService.tick_then() postpones the log update for one turn of the browser's JavaScript cycle and 
+  that's just long enough.
+
+
+After Content
+_____________
+- The AfterContent sample explores the AfterContentInit() and AfterContentChecked() hooks that Angular calls
+  after Angular projects external content into the component
+
+- Content projection : 'Content projection is a way to import HTML content from outside the component and
+  insert that content into the component's template in a desgnated spot'
+<project other component html in designated spot >
+
+AfterContentParentComponent
+___________________________
+<after-content>   // component that projects app-child component html into it
+ <app-child></app-child>
+<after-content>
+
+Notice that the <app-child> tag is tucked between the <after-content> tags. 
+Never put content between a component's element tags unless you intend to project 
+that content into the component
+
+- Now look at the components template
+
+AfterContentComponent( template )
+template: `
+  <div> -- projected content begins --</div>
+  <ng-content></ng-content>
+  <div>-- projected content hends -- </div>
+
+- The <ng-content> tag is a placeholder for the external content. It tells the angular to insert that content.
+- In this case the projected content is <app-child> from the parent
+
+
+
+The telltake signs of content projection are twodfold
+- HTML between component tags
+- The presence of <ng-content> tags in the components template
+
+
+AfterContent hooks
+__________________
+
+AfterContent hooks are similar to the AfterView hooks. The key difference is the child component
+- The AfterView hooks concern the viewChildren, the child components, whose element tags appear within 
+  the components template
+- The AfterContent hooks concern the ContentChildren, the child components that Angular projected into the
+  component
+
+Querying the content child is done useing the decorate property '@ContentChild'
+
+export class AfterContentComponent implements AfterContentChecked, AfterContentInit {
+  private prevHero = '';
+  comment = '';
+
+  // Query for a CONTENT child of type `ChildComponent`
+  @ContentChild(ChildComponent) contentChild: ChildComponent;
+
+  ngAfterContentInit() {
+    // contentChild is set after the content has been initialized
+    this.logIt('AfterContentInit');
+    this.doSomething();
+  }
+
+  ngAfterContentChecked() {
+    // contentChild is updated after the content has been checked
+    if (this.prevHero === this.contentChild.hero) {
+      this.logIt('AfterContentChecked (no change)');
+    } else {
+      this.prevHero = this.contentChild.hero;
+      this.logIt('AfterContentChecked');
+      this.doSomething();
+    }
+  }
+  // ...
+}
+
+No unidirectional flow worries with After content
+_________________________________________________
+
+- This components doSOmeting() method  updates the components data bound comment property immediately
+- Recall that ANgular calls both AfterContent hooks before calling either of the AfterView hooks.
+- ANgular completes the composition of the projected content beofre finishing the composition of the 
+  components view.
+- Ther is a small window between the AfterContent .. and AfterVieww.. hooks to modify the host view
+
+
+
+
+
+
+

@@ -1,0 +1,1280 @@
+<context: []>
+
+HttpClient
+__________
+
+- Most front-end applications communicate with backend services over the HTTP protocol.
+- Modern browsers support two different APIs for making HTTP requests: the XMLHttpRequest interface
+  and the fetch() API.
+
+- The HttpClient in @angular/common/http offers a simplified client HTTP API for angular applications
+  that rests on the XMLHttpRequest interface exposed by browsers.
+- Benfits of using HttpClient angular api includes - 
+  - testability features
+  - typed request and response objects
+  - request and response interception
+  - observable apis
+  - streamlined error handling
+
+- Note: The HttpResponses can be mocked if the real dataserver doesnt exist. HTTP requests can be intercepted
+        before they reach the server and response can be sent by simulating the Rest-Like backend behaviour 
+
+
+Setup
+_____
+
+- Before you can use HttpClient, you need to import the Angular HttpClientModule.
+- Most apps do so in the root AppModule
+
+app/app.module.ts(excerpt)
+--------------------------
+
+import { NgModule } from '@angular/core';
+import { BrowserModule } from '@angular/platform-browser';
+import { HttpClientModule } from '@angular/common/http';
+
+@NgModule({
+   imports: [
+        BrowserModule.
+        //Import HttpClientModule after BrowserModule
+        HttpClientModule
+        ],
+
+   declarations: [
+        AppComponent,
+        ],
+   bootstrap: [ AppComponent ]
+   })
+
+  export class AppModule {}
+
+
+- Having imported HttpClientModule into the AppModule, you can inject the HttpClient into an
+  application class as shown in the following ConfigService example
+
+
+app/config/config.service.ts(excerpt)
+-------------------------------------
+
+import { Injectable } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
+
+@Injectable()
+export class ConfigService {
+     constructor(private http: HttpClient) {}
+}
+
+Getting JSON data
+-----------------
+
+- Applications often request JSON data from the server.
+- Example: the app might need a configuration file on the server, config.json, that specifies resource URLs
+{
+  "heroesUrl": "api/heroes",
+  "textfile": "assets/textfile.txt"
+}
+
+- The ConfigService fetches this file with a get() method on HttpClient
+app/config/config.service.ts
+----------------------------
+configUrl = 'assets/config.json';
+
+getConfig() {
+    return this.http.get(this.configUrl);
+}
+
+- A Component, such as ConfigComponent, injects the ConfigService and calls the getConfig service method
+
+app/config/config.component.ts
+
+showConfig() {
+    this.configService.getConfig()
+       .subscribe((data: Config) => this.config = {
+     heroesUrl: data['heroesUrl'],
+     textfile: data['textfile']
+  })
+
+- Because the service method returns an Observable of configuration data, the component subscribes
+  to the method's return value.
+- The subscription call back copies the data fields into the component's config object, which is 
+  data-bound in the component template for display
+
+Why write a service
+___________________
+
+- This example is so simple that it is tempting to write http.get() inside the component itself and
+  skip the service
+- However the data access rarely stays this simple
+- You typically post-process the data, add error handling, and maybe some retry logic to cope with 
+  intermittent connectivity
+- The Component quickly becomes cluttered with data access minutia. The component becomes harder to understand
+  harder to test, and the data access logic cant be reused to standardized
+
+- Thats why it is a best practice to separate presentation of data from data access by encapusulating data 
+  access in a service class and delegating to that service in the component, even in simple cases like this one
+
+
+Type-checking the response
+__________________________
+
+- The subscribe callback above requires bracket notation to extract the data values
+   .subscribe((data: config) => this.config = {
+                 textfile: data['textfile'], 
+                 heroesUrl: data['heroesUrl']
+            });
+
+- You cannot write data.heroesUrl becuase TypeScript correctly complains that the data object from 
+  the service does not have a heroesUrl property.
+
+- The HttpClient.get() method parsed the JSON  server response into the anonymous Object type.
+  It doesnt know that the shape of that object is.
+
+- You can tell HttpClient the type of the response to make consuming the output easier and more obvious
+
+
+First define an interface with the correct shape
+      export interface Config {
+         heroesUrl: string;
+         textfile: string;
+      }
+
+Then, specify that interface as the HttpClient.get() call's type parameter in the service
+
+     getConfig(){
+         now returns an Observable of Config
+         return this.http.get<Config>(this.configUrl);
+      }
+
+- The callback in the updated component method receives a typed data object, which is easier and safer to 
+  consume
+
+app/config/config.component.ts
+
+config: Config
+
+ showConfig() {
+    this.configService.getConfig()
+    //clone the data object, using its know Config shape
+    .subscribe((data: Config) => this.config = { ...data });   // might java script object cloning
+}
+
+Reading the full response
+_________________________
+
+- The response body doesn't return all the data you may need. 
+- Sometimes servers return special hearders or status codes to indicate certain conditions that
+  are important to application workflow
+
+
+- Tell HttpClient that you want the full response with the 'observe' option
+
+getConfigResponse(): Observable<HttpResponse<Config>> {
+         return this.http.get<Config>(
+             this.configUrl, { observe, 'response' });
+}
+
+- Now HttpClient.get() returns an Observable of typed HttpResponse rather than just the JSON data
+- The component's showConfigResponse() method displays the response headers as well as the configuration
+
+app/config/config.component.ts (showConfigResponse)
+---------------------------------------------------
+
+showConfigResponse() {
+   this.configService.getConfigResponse()
+      //resp is of type 'HttpResponse<Config>'
+   .subscribe(resp => {
+     //displays its header
+     const keys = resp.headers.keys();
+     this.headers = keys.map(key => 
+          `${key}: ${resp.headers.get(key)}`);
+  
+     //access the body directly, which is typed as `Config`. 
+     this.config = { ...resp.body }
+  });
+}
+
+- As you can see, the response object has a body property of correct type.
+
+
+Error Handling
+______________
+
+- WHat happens if the request fails on the server, or if a poor network connection prevents it form 
+  even reaching the server
+- HttpClient will return an error object instead of a successful response
+
+- You could handle in the component by adding a second callback to the .subscribe()
+
+
+showConfig() {
+    this.configService.getConfig().
+       .subscribe(
+        (data: Config) => this.config = { ...data }, //success path
+         error => this.error = error //error path
+      );
+    }
+
+- Its certainly a good idea to give the user some kind of feedback when data access fails.
+- But displaying the raw error object returned by HttpClient is far from the best way to do it.
+
+- Two types of errors can occur. The server backend might reject the request, returning an HTTP response
+  with a status code such as 404 or 500. These are error responses.
+
+   Or something could go wrong on the client-side such as a network error that prevents the request from 
+   completing successfully or an exception thrown in an RxJS operator.
+   These errors produce JavaScript ErrorEvent objects
+
+- The HttpClient captures both kinds of errors in its HttpErrorResponse and you can inspect that response
+  to figure out what really happened
+
+- Error inspection, interpretation and resolution is something you want to do in the service, not inthe 
+  component
+
+app/config/config.service.ts(handleError)
+
+   private handleError(error: HttpErrorResponse) {
+      if(error.error instanceof ErrorEvent) {
+     //A client side or network error occurred. Handle it accordingly
+      console.error('An error occurred:', error.error.message);
+    } else {
+     // The backend returned an unsuccesful response code.
+     // The response body may contain clues as to what went wrong
+     console.error(
+       `Backend return code $(error.status), `+
+       `body was: ${error.error}`);
+   }
+
+   //return an observable with a user-facing error message
+   return throwError(
+     'Something bad happened; please try again later.');
+};
+
+- Notice that this handler returns an RxJS ErrorObservable with a user-friendly error message.
+- Consumers of the service expect service methods to return an Observable of some kind, even a 'bad' one
+
+
+- Now you take the Observables returned by the HttpClient methods and pipe them through to the error handler
+getConfig() {
+   return this.http.get<Config>(this.configUrl)
+   .pipe(
+      catchError(this.handleError)
+    );
+}
+
+
+retry()
+_______
+- Sometimes are error is transient and will go away automatically if you try again.
+- ex network interruptions in mobile scenarios
+- retry() operator from RxJs library, automtically resubscribes to a failed observable a specified number of
+  times
+- Resubsribing to the result of HttpClient method call has the effect of reissuing the HTTP request.
+
+app/config/config.service.ts(getConfig with retry)
+getConfig() {
+   return this.http.get<Config>(this.configUrl)
+       .pipe(
+           retry(3),
+           catchError(this.handleError);
+          );
+}
+
+
+Observables and operators
+__________________________
+
+- RxJS is a library for composing asynchronous and callback-based code in a functional, reactive style.
+- Many Angular API's including HttpClient, producr and consume RxJS Observables
+
+RxJs imports 
+import { Observable, throwError } from 'rxjs';
+import { catchError, retry } from 'rxjs/operators';
+
+
+
+Requesting non-JSON data
+________________________
+
+- Note all API's in HttpClient module returns JSON data.
+- You may want to read text files from the server (non JSON data) and logs the file contents, before
+   returning those contents to the caller as an Observable<string>
+
+app/downloader/downloader.service.ts(getTextFile)
+getTextFile(filename: string) {
+   //The Observable returned by get() is of type Observable<string>
+   //because a text response was specified.
+   //There is no need to pass a <string> type parameter ti get()
+   
+   return this.http.get(filename, {reponseType: 'text})
+           .pipe(
+               tap(//lg the result or error
+                  data => this.log(filename, data),
+                  error => this.logError(filename, error)
+               )
+       );
+}
+
+- HttpClient.get() returns a string rather then JSON because of the responseType option.
+- The RxJS 'tap' operator (as in 'wiretap') lets the code inspect good and error values passing through the
+  observable with out disturbing them
+
+- A download() method in the Downloader component initiates the request by subscribing to the service method
+  
+  download() {
+     this.downloadService.getTextFile('assets/textfile.txt')
+     .subscribe( results => this.contents = results);
+    }
+
+
+Sending Data to the Server
+__________________________
+- Use Post, Put, Delete http methods to send the data to server ( mutating requests )
+
+
+Adding header
+------------
+- Headers are needed to specify certain parameters required by the servers for save operations
+- Like content-type, authorization token etc
+
+- create headerOptions var with extra headers and pass it with http save operations
+
+import { HttpHeaders } from '@angular/common/http';
+
+const httpOptions = {
+     headers: new HttpHeaders({
+         'Content-type': 'application/json',
+         'Authorization': 'my-auth-token'
+        })
+};
+
+Making a POST request
+---------------------
+
+addHero(hero: Hero): Observable<Hero> {
+   return this.http.post<Hero>(this.heroesUrl, hero, httpOptions)
+           .pipe(
+               catchError(this.handleError('addHero', hero))
+           );
+ }
+
+
+- subscribe to the addHero method to trigger the post request in a component
+   this.heroService.addHero(newHero).
+         subscribe(hero => this.heroes.push(hero));
+
+Making a delete request
+-----------------------
+
+deleteHero(id: number): Observable<{}> {
+    const url: `${this.heroesUrl}/${id}`;  //Delete api/heroes/42
+    return this.http.delete(url, httpOptions).
+            pipe(
+               catchError(this.handleError('deleteHero'))
+            );
+         }
+
+- Heroes component calls the actual delete operation
+  this.heroesService.deleteHero(hero.id).subscribe();
+
+- No subscribe, no http requests are called
+- AsyncPipe automatically subscribes and unsubscribes for you
+- all observables returned by http methods are cold by design, http methods not initated untill subscribed, \
+  which allows to extend the observable
+  functionality to - catch errors, tap
+
+- Every subscribe calls initaites the http request again
+const req = http.get<Heroes>('/api/heroes');
+// 0 requests made - .subscribe() not called.
+req.subscribe();
+// 1 request made.
+req.subscribe();
+// 2 requests made.
+
+PUT request
+------------
+
+- PUT request is to completely replace the resource with the new data
+
+updateHero(hero: Hero): Observable<hero> {
+          return this.http.put<hero>(this.heroesUrl, hero, httpOptions)
+                     .pipe(
+                         catchError(this.handleError('updateHero', hero))
+                   );
+ };
+
+
+this.heroService.updateHero(this.hero)
+         .subscribe(hero => 
+             this.heroes.push(hero);
+          );
+
+
+
+Advanced Usage
+______________
+
+Configuring the request
+------------------------
+- update headers
+  httpOptions.headers =
+        httpOptions.headers.set('Authorization', 'my-new-auth-token');
+
+- headers is an immutable class, hence use 'set' method to modify the existing headers
+
+Url Parameters
+--------------
+- Pass an url param to 'search' for the 'term' in the data ( url search parameters )
+
+/* Get heroes whose name contains search term */
+
+searchHeroes(term: string): Observable<Hero[]> {
+        term = term.trim();
+
+     //Add safe URL encoded search parameter if there is a search term
+       const options = term ?
+                       { params: new HttpParams().set('name', term) } : {};
+
+       return this.http.get<Hero[]>(this.heroesUrl, options).
+                pipe(
+                   catchError(this.handleError<Hero[]>('searchHeroes', []))	
+                );
+   }
+          
+- HttpParams are immutable , so you use 'set' method to update them
+
+
+Debouncing Requests
+___________________
+Observables : http://reactivex.io/rxjs/manual/overview.html
+
+Functioning of a subject( subject is both an observable and observer )(It is multicast observable)
+------------------------
+var subject = new Rx.Subject();
+
+subject.subscribe({
+  next: (v) => console.log('observerA: ' + v)
+});
+subject.subscribe({
+  next: (v) => console.log('observerB: ' + v)
+});
+
+var observable = Rx.Observable.from([1, 2, 3]);
+
+observable.subscribe(subject); // You can subscribe providing a Subject
+
+-----------------------------
+How it works
+
+1> create a subject
+2> register observers to the subject
+3> create an observable
+4> subscribe to the observable passing subject as observer
+5> Observable output will be received by all the registered subscribers of the subject
+
+
+Debouncing Requests (Example search bar)
+--------------------
+
+- Lets discuss an npm package search example
+- when the user enters a name in a search box, the PackageSearchComponent sends a search request for a 
+  npm package with that name to the NPM web API
+
+app/package-search/package-search.component.html (search)
+<input (keyup)="search($event.target.value)" id="name" placeholder="Search"/>
+<ul>
+   <li *ngFor="let package of packages$ | async">
+      <b>{{package.name}} v.{{package.version}}</b> -
+      <i>{{package.description}}</i>
+   </li>
+</ul>     
+
+- the keyup event bind sends every keystroke to the component's search() method.
+
+- Sending a request for every keystroke could be expensive.
+- Its better to wait until the user stops typing and then send a request
+- This is implemented with RxJs operators
+
+
+app/package-search/package-search.component.ts (excerpt)
+
+withRefresh = false;
+packages$: Observable<NpmPackageInfo[]>;
+private searchText$ = new Subject<string>();
+
+
+search(packageName: string) {
+	this.searchText$.next(packageName);
+}
+
+
+ngOnInit() {
+  this.packages$ = this.searchText$.pipe(
+       debounceTime(500),
+       distinctUntilChanged(),
+       switchMap(packageName =>
+           this.searchService.search(packageName, this.withRefresh))
+     );
+}
+
+constructor(private searchService: PackageSearchService) {}
+
+- The searchText$ is the sequence of search-box values coming from the user.
+- Its defined as an RxJs Subject, which means it is a multicasting Observable that can also produce values for
+  itself by calling next(value), as happens in the search() method
+
+- Rather than forward every searchText value to the injected PackageSearch service , the code in ngOnInit()
+  pipes the search values through three operators
+
+   1. debounceTime(500) - wait for the user to stop typing (1/2 second in this case)
+   2. distinctUntilChanged() - wait until the search text changes
+   3. switchMap() - send the search request to the service
+
+- The code sets packages$ to this re-composed Observable of search results.
+- The template subscribes to package$ with the AsyncPipe and displays search results as they arrive
+
+A search value reaches the service only if its a new value and user has stopped typing
+
+switchMap()
+----------
+The switchMap() operator has three important characteristics
+
+1.(returns observable) It takes a function arguement that returns an Observable. 
+2.(rerequest unserved requests)If a previous request search request is still in-flight( as when the connection is poor), it cancels that
+   request and sends a new one
+3.(sequential response)It returns service response in their orginal request order, even if the server returns them out of order
+
+
+
+Intercepting requests and responses
+___________________________________
+
+- Http Interception is a major feature of @angular/common/http.
+- With interception , you declare interceptors that inspect and transform HTTP requests from your app to the 
+  server.
+- The same interceptors may also inspect and transform the server's responses on their way back to the app.
+- Multiple interceptors form a forward-backward chain of request/response handlers
+
+
+- Interceptors can perfrom variety of implicit tasks, from authentication to logging, in a routine, standard 
+  way, for every HTTP request/response
+
+Write an interceptor
+--------------------
+
+- To implement an interceptor, declare a class that implements the intercept() method of the 
+  HttpInterceptor interface.
+
+Here is a do-nothing noop interceptor, that simply passes the request through without touching it:
+
+app/http-interceptors/noop-interceptor.ts
+----------------------------------------
+
+import { injectable } from '@angular/core';
+import {
+    HttpEvent, HttpInterceptor, HttpHandler, HttpRequest
+      } from '@angular/common/http';
+
+import { Observable } from 'rxjs';
+
+/** Pass untouched request through to the next request handler */
+@Injectable()
+export class NoopInterceptor implements HttpInterceptor {
+
+     intercept(req: HttpRequest<any>, next: HttpHandler):
+          Observable<HttpEvent<any>> {
+       
+          return next.handle(req);
+        }
+    }
+
+- The intercept method transforms a request into an Observable  that eventually returns the HTTP response.
+- Most interceptors inspect the request on the way in and forward the(perhaps altered) request to the handle()
+  method of the next object which implements the HttpHandler interface
+
+export abstract class HttpHandler {
+    abstract handle(req: HttpRequest<any>): Observable<HttpEvent<any>>;
+}
+
+- Like intercept, the handler transforms an Http request into an Observable of HttpEvents which ultimately 
+  include the server's response
+- The intercept method could inspect that observable and alter it before returning it to the caller
+
+- The noop interceptor simply calls the next.handle() with the original request and returns the observable
+  without doing a thing
+
+The next object
+---------------
+- The next object represents the next interceptor in the chain of interceptors.
+- The final next in the chain is the HttpClient backend handler that sends the request to the server
+   and receives the server's response.
+
+- Most interceptors call next.handler() so that the request flows through to the next interceptor and,
+  eventually, the backend handler
+- An interceptor could skip calling next.handle(), short-circuit the chain,  and return its own Observable
+  with an artificial server response
+
+This is a common middleware pattern found in frameworks such as Express.js.
+
+Provide the interceptor
+----------------------
+
+- The NoopInterceptor is a service managed by Angular's dependency injection system.
+- Like other services, you must provide the interceptor class before the app can use it
+
+
+- Because interceptors are (optional) dependencies of the HttpClient service, you must provide them in the
+  same injector( or a parent of the injector) that provides HttpClient.
+  Interceptors provided after DI creates HttpClient are ignored
+- This app provides HttpClient in the app's root injector, as a side-effect of importing the HttpClientModule
+  in the AppModule.
+- You should provide interceptors in the AppModule as well.
+
+
+- After importing the HTTP_INTERCEPTORS injection token from @angular/common/http,  write the
+  NoopInterceptor provider liek this
+
+ { provide: HTTP_INTERCPETORS, useClass: NoopInterceptor, multi: true },
+
+- Note the multi: true option. This required setting tells Angular that HTTP_INTERCEPTORS is a token for a
+  multiprovider that injects an array of values, rather than a single value ( multiple interceptors)
+
+- You could add this provider directly to the providers array of the AppModule.
+- However, its rather, verbose and there's a good chance that you create more interceptors and provide them in
+  same way.
+- You must also pay close attention to the order in which you provide these interceptors
+
+
+- Consider creating a "barrel" file that gathers all the interceptor providers into an
+  httpInterceptorProviders array, starting with the NoopInterceptor
+
+
+app/http-interceptors/index.ts
+------------------------------
+/* "Barrel" of Http Interceptors */
+
+import { HTTP_INTERCEPTORS } from '@angular/common/http';
+import { NoopInterceptor } from './noop-interceptor';
+
+/** Http interceptor providers in outside-in order */
+export const httpInterceptorProviders = [
+ { provide: HTTP_INTERCEPTORS,  useClass: NoopInterceptor,   multi: true },
+// Next set of interceptors can be added to this array
+];
+
+
+Then import and add it to the AppModule providers array like this:
+
+app/app.module.ts(interceptor providers)
+
+providers: [
+    httpInterceptorProviders
+],
+
+- As you create new interceptors, add them to the httpInterceptorProviders array and you dont need to touch
+  the app module
+
+
+Interceptor order
+----------------- 
+
+- Angular applies interceptors in the order that you provide them .
+- If you provide interceptors A, then B, then C, requests will flow in A->B->C and response in C->B->A
+
+- You cannot change the order or remove interceptors later. If you need to enable and disable an interceptor
+  dynamically, you ill have to build that capability into the interceptor itself
+
+HTTPEvents
+----------
+- You may have expected the intercept() and handle() methods to return observables of HttpResponse<any> as
+   most HttpClient methods do
+
+- But instead they return observables of HttpEvent<any> 
+
+- Thats because interceptors work at a lower level than those HttpClient methods.
+- A single HttpRequest can generate multiple events, including upload and download progress events.
+- The HttpResponse class itself is actually an event whose type is HttpEventType.HttpResponseEvent
+
+- Many interceptors are only concerned with the outgoing request and simply return the event stream from 
+  next.handle() without modifying it.
+- But interceptors that examine and modify the response from next.handle() will see all of these events.
+- Your interceptor should return every event untouched unless it has a compelling reason to do otherwise.
+
+
+Immutability
+------------
+
+- Although interceptors are capable of mutating requests and responses, the HttpRequest and HttpResponse
+  instance properties are readonly, rendering them largely immutable.
+
+- They are immutable for a good reason. The app may retry a request several times before it succeeds.
+  which means that the interceptor chain may re-process the same request multiple times. 
+- If an interceptor could modify the original request object, the retried operation would start from the
+  modified request rather than the original.
+- Immutability ensures that the interceptors see the same request for each try
+
+Typescript will prevent you from setting HttpResquest readonly properties
+
+// Typescript disallows the following assignment because req.url is readonly
+req.url = req.url.replace('http://', 'https://');
+
+- To alter the request, clone it first and modify the clone before passing it to next.handle().
+- You can clone and modify the request in a single step as in this example
+
+app/http-interceptors/ensure-https-interceptor.ts(excerpt)
+
+//clone request and replace "http://" with "https://" at the same time
+   
+  const secureReq = req.clone({
+           url: req.url.replace('http://', 'https://')
+    });
+
+// send the clones "secure" request to the next handler
+   return.next(secureReq );
+
+- The clone method's hash arguement alows you to mutate specific properties of the request while copying others
+
+The Request body
+----------------
+
+- The readonly assignment guard cant prevent deep updates and in particular, it cant prevent you from 
+  modifying a property of a request body object.
+
+  req.body.name = req.body.name.trim() //bad idea!
+
+If you must mutate the request body, copy it first, change the copy, clone() the request and set the clone's body
+with the new body
+
+//copy the body and trim white space from the name property
+  
+  cont newBody = { ...body, name: body.name.trim() };
+ 
+//clone the req and set its body
+  newReq = req.clone({
+      body: newBody });
+
+//send the cloned request to the next handler
+   return next.handle(newReq);
+
+
+Clearing the request body
+-------------------------
+
+- sometimes you need to clear the request body rather than replace it
+- If you set the cloned request body to undefined, Angular assumes you intend to leave the body as is.
+- If you set the cloned body to null. ANgular knows you intend to clear it
+
+newReq = req.clone({ ... }); // body not mentioned => preserve original body
+newReq = req.clone({ body: undefined }); // preserve original body
+newReq = req.clone({ body: null }); // clear the body
+
+
+Set default Headers
+-------------------
+
+- Apps often use an interceptor to set default headers on outgoing requests.
+
+- The sampel app had AuthService that produces an authorization token. Here is its AuthInterceptor
+  that injects that service to get the token and adds an authorization header with that token to every
+  outgoing request:
+
+
+  app/http-interceptors/auth-interceptors.ts
+  ------------------------------------------
+
+ import { AuthSerivice } from '../auth.service';
+
+ @injectable()
+ export class AuthInterceptor implements HttpInterceptor {
+      
+      constructor(private auth: AuthService) {}
+      
+      interceptor(req: HttpRequest<any>, next: HttpHandler) {
+          //Get the auth token from the service
+          
+          const authToken = this.auth.getAuthorizationToken();
+          
+         //Clone the request and replace the original headers with
+           cloned headers, updated with the authorization
+
+         const authReq = req.clone({
+                headers: req.headers.set('Authorization', authToken)
+            });
+
+          // send the cloned request with header to the next handler
+             return next.handle(authReq);
+       }
+}
+
+- The practice of cloning a request to set new headers is so common that there's a setHeaders shortcut
+  for it.
+
+        const authReq = req.clone({ setHeaders: { Authorization: authToken} });
+
+- An interceptor that alters headers can be used for a number of different operations, including:
+        - Authentication/authorization
+        - Caching behavior, for example, If-Modified-Since
+        - XSRF protection
+
+
+Logging
+__________
+
+- Because interceptors can process the request and response together, they can do things like time and log
+  an entire HTTP operation
+
+- Consider the following LoggingInterceptor, which captures the time of the request, the time of the response
+  and logs the outcome with the elapsed time with the injected MessageService
+
+
+app/http-interceptors/logging-interceptors.ts
+
+1      import { finalize, tap } from 'rxjs/operators';
+2      import { MessageService } from '../message.service';
+
+3      @Injectable()
+        export class LoggingInterceptor implements HttpInterceptor {
+             constructor(private messenger: MessageService) {}
+         
+
+             intercept(req: HttpRequest<any>, next: HttpHandler) {
+               const started = Date.now();
+
+               let ok: string;
+
+               //extend server response observable with logging
+               return next.handle(req)
+               .pipe(
+                 
+                  tap(
+                       //succeeds when there is a response; ignore other events
+                       event => ok = event instanceof HttpResponse ? 'succeeded' : '',
+ 
+                       //operation failed , error is HttpErrorResponse
+                       error => ok = 'failed'
+                     )
+
+                   // Log when response observable either completes or errors
+                      
+                      finalize(() => {
+                               
+                         const elapsed = Date.now() - started;
+                         const msg = '${req.method} "${req.urlWithParams}"
+                                         ${ok} in ${elapsed} ms.';
+
+                         this.messenger.add(msg);
+                      })  
+                    );
+            }
+      }                  
+                         
+- The rxjs tap operator captures whether the request succeeded or failed. 
+- The rxjs finalize operator is called when the response observer either errors or completes(which it must) and
+  reports the outcome to the MessageService
+
+- Neither tap nor finalize touch the calies of the observable stream returned to the caller
+
+
+Caching
+__________
+
+- Interceptors can handler requests by themselves, without forwarding to the next.handler().
+
+- For example, you might decide to cache certain requests and responses to improve performance.
+  You can delegate caching to an interceptor with disturbing your exiting data services
+
+- The CachingInterceptor demonstrates this approach
+
+app/http-interceptors/caching-interceptor.ts
+       
+    @Injectable()
+    export class CachingInterceptor implements HttpInterceptor {
+      constructor(private cache: RequestCache) {}
+   
+    intercept(req: HttpRequest<any>, next: HttpHandler) {
+       // continue if not cachable
+          if(!isCachable(req)) { return next.handle(req); }
+                
+          const cachedResponse = this.cache.get(req);
+             
+           return cachedResponse ?
+              of(cachedResponse) : sendRequest(req, next, this.cache);
+     }
+   } 
+       
+- The isCachable() function determines if the request is cachable.
+- In this sample, only GET requests to the npm package search api are cachable
+
+- If the request is not cachable, the interceptor simply forwards the request to the next handler in the chain.
+- If a cachable request is found in the cache, the interceptor returns an of() observable with the cached
+  response, by-passing the next handler( and all other interceptors downstream )
+- If a cachable request is not in the cache, the code calls sendRequest
+
+
+/** Get server response observable by sending request to 'next()'.
+    Will add the response to the cache on the way out.  **/
+
+
+function sendRequest(
+          req: HttpRequest<any>,
+          next: HttpHandler,
+          cache: RequestCache) : Observable<HttpEvent<any>> {
+
+        // No headers allowed in npm search request
+        const noHeaderReq = req.clone({Headers: new HttpHeaders() });   
+        
+        return next.handler(noHeaderReq)
+               .pipe(
+                  tap( event => {
+                   // there may be other events besides the response
+                      if(event instanceof HttpResonse) {
+                       cache.put(req, event); //update the cache.                 
+                      }
+                 })
+             );
+      }
+
+- The sendRequest function creates a request clone without headers because the npm api forbids them.
+- it forwards that request to next.handle() which ultimately calls the server and returns the server response
+
+- Note how sendRequest intercepts the response on its way back to the application. It pipes the response
+  through the tap() operator, whose callback adds the response to the cache.
+
+- The original response contines untouched backup through the chain of interceptors to the application
+  caller.
+
+- Data Services, such as PackageSearchService, are unaware that some of their HttpClient requests
+  actually return cached response
+
+
+Return a multi-valued Observable
+________________________________
+
+- The HttpClient.get() method normally returns an observable that either emits the data or an error.
+- Some folks describe it as a "one and done" observable
+
+- But an interceptor can change this to an observable that emits more than once.
+
+- A revised version of the CachingInterceptor optionally returns an observable that immediately emits
+  the cached response, sends the request to the NPM web API anyway, and emits again later with the 
+  updated search results
+
+//cache-then-refresh
+if(req.headers.get('x-refresh')) {
+   const results$ = sendRequest(req, next, this.cache);
+   return cachedResponse ? 
+         results$.pipe( startWith(cachedResponse) ) :
+         results$;
+}
+
+//cache or fetch
+return cachedResponse ?
+         of(cachedResponse) : sendRequest(req, next, this.cache);
+
+- The cache-then-refresh option is triggered by the presence of a custom x-refresh header
+- A checkbox on the PackageSearchComponent toggles a withRefresh flag, 
+  which is one of the arguments to PackageSearchService.search(). 
+  That search() method creates the custom x-refresh header and adds it to the request before calling 
+  HttpClient.get().
+
+
+- The revised CachingInterceptor sets up a server request whether there's cached value or not, using
+  the same sendRequest() method.
+- The results$ observable will make the request when subscribed.
+- If there is not cached value, the interceptor returns results$
+- If there is a cached value, the code pipes the cached response into the results$ producing a recomposed
+  observable that emits twice, the cached response first( and immediately ), followed later by the response
+  from ther server
+- Subscriber see a sequence of two responses
+
+
+
+
+
+
+
+Listening to progress events
+____________________________
+
+- Sometimes applications transfer large amounts of data and those transfers can take a long time.
+- File uploads are a typical example. 
+- Give the users a better experience by providing feedback on the progress of such transfers
+
+
+- To make a request with progress events enabled, you can create an instance of HttpRequest with the
+  'reportProgress' option set true to enable tracking of progress events
+
+app/uploader/uploader.service.ts
+-------------------------------
+    const req = new HttpRequest('POST', '/upload/file', file, {
+                    reportProgress: true
+                  });
+
+- Every progress event triggers change detection, so only turn them on if you truely intend to report
+  progress UI
+- When using HttpClient#request() with an HTTP method, configure with observe: 'events', to see all events
+  including the progress of transfers
+
+- Next pass this request object to the HttpClient.request() method, which returns an Observable of HttpEvents,
+  the same events processed by the interceptors
+
+
+app/uploader/uploader.service.ts
+---------------------------------
+
+// The HttpClient.request API produces a raw event stream
+// which includes start(sent), progress and response events
+
+return this.http.request(req).pipe(
+    map(event => this.getEventMessage(event, file)),
+    tap(message => this.showprogress(message)),
+    last(), // return last(completed) message to caller
+    catchError(this.handleError(file))
+);
+
+The getEventMessage method interprets each type of HttpEvent in the event stream
+
+app/uploader/uploader.service.ts(getEventMessage)
+/** Return distince message for sent, upload progress & response events */
+
+private getEventMessage(event: HttpEvent<any>, file: File) {
+    switch(event.type) {
+        case HttpEventType.sent:
+           return 'Uploading file "${file.name}" of size ${file.size}.';
+
+        case HttpEventType.UploadProgress:
+            // compute and show the % done:
+            const percentDone = Math.round(100 * event.loaded / event.total);
+            return 'File "${file.name}" is ${percentDone}% uploade.';
+
+        case HttpEventType.Response:
+             return 'File "${file.name}" was completelt uploaded!';
+
+        default:
+             return 'File "${file.name}" was surprising upload event: ${event.type}.';
+     }
+}
+
+
+Security: XSRF Protection
+-------------------------
+
+- Cross-Site Request Forgery( XSRF) is an attack technique by which the attacker can trick an authenticated
+  user into unknowingly executing actions on your website.
+- HttpCLient supports a common mechanism used to prevent XSRF attacks.
+- WHen performing Http requests, an interceptor reads a tooken from a cookie, by default XSRF-TOKEN, and 
+  sets it as an HTTP Header, X-XSRF_TOKEN.
+- Since only code that runs on your domain could read the cookie, the backend can be certain that the HTTP
+  requests came from  your client application and not an attacker.
+
+
+- By default, an interceptor sends this header on all mutating requests(POST etc) to relative URL's but
+  not on GET/HEAD requests or on requests with absolute URL.
+
+- To take advantage of this, your server needs to set a token in a JavaScript readable session cookie called
+  XSRF-TOKEN on either the page load or the first GET request.
+
+- On subsequent requests the server can verify that the cookie matches the X-XSRF_TOKEN HTTP header, and 
+  therefore be sure that only code running on your domain could have sent the request.
+- The token must be unique for each user and must be verifiable by the server; this prevents the client from
+   making up its own tokens.
+- Set the token to a digest of your site's authentication cookie with a salt for added security
+
+
+- In order to prevent collisions in environment where multiple Angular apps share the same domain or subdomain
+  give each application a unique cookie name
+
+Note - HttpClient supports only the  client half of the XSRF protection scheme. Your backend service
+       must be configured to set the cookie for your page and to verify that the header is present
+       on elgible requests
+
+
+Configuring custom cookie/header names
+--------------------------------------
+- If your backend service uses different names for the XSRF token cookie or header, use 
+  HttpClientXsrfModule.withOptions() to override the defualts
+
+
+imports: [
+     HttpClientModule,
+     HttpClientXsrfModule.withOptions({
+             cookieName: 'My-Xsrf-Cookie',
+             headerName: 'My-Xsrf-Header',
+    }),
+   ],
+
+
+Testing HTTP requests
+_____________________
+
+- Like any external dependency, the HTTP backend needs to be mocked so your tests can simulate interaction
+  with a remote server.
+- The @angular/common/http/testing library makes setting up such mocking straightforward
+
+Mocking Philosopy
+-----------------
+- Angular's HTTP testing library is designed for a pattern of testing wherein the app executes code and
+  makes requests first
+
+- Then a test expects that certain requests have or have not been made, performs assertion against those
+  requests and finally provides responses by "flushing" each expected request
+- At the end, tests mau verify that the app has made no unexpected requests
+
+Setup
+-----
+- To begin testing calls to HttpClient, import the HttpClientTestingModule and the mocking controller,
+  HttpTestingController, along with the other symbols your tests require
+
+app/testing/http-client.spec.ts(imports)
+//Http testing module and mocking controller
+
+import { HttpClientTestingModule, HttpTestingController } from '@angular/common/http/testing';
+
+//other imports
+   import { TestBed } from  '@angular/core/testing';
+   import { HttpClient, HttpErrorResponse } from '@angular/common/http';
+
+- Then add HtttpClientTestingModule to the TestBed and continue with the setup of the service under-test
+
+
+
+app/testing/http-client.spec.ts
+
+describe('HttpClient testing', () => {
+      let httpClient: HttpClient;
+      let httpTestingController: HttpTestingController;
+  
+      beforeEach(() => {
+       TestBed.configureTestingModule({
+         imports: [ HttpClientTestingModule ]
+      });
+
+      //Inject the http service and test controller for each test
+      httpClient = TestBed.get(HttpClient);
+      httpTestingContoller = TestBed.get(HttpTestingController);
+    });
+
+  ///Test begins ///
+
+});
+
+- Now requests made in the course of your tests will hit the testing backend intead of normal backend
+- The setup also calls the TestBed.get() to inject the HttpClient service and the mocking controller so they
+  can be referenced during the tests
+
+Expecting and ansering requests
+-------------------------------
+
+- Now you can write a test that expects a GET Request to occur and provides a mock response
+
+app/testing/http-client.spec.ts(httpClient.get)
+-----------------------------------------------
+
+it('can test HttpClient.get', () => {
+        const testData: Data = {name: 'Test Data'};
+
+// Make an HTTP GET Request
+httpClient.get<Data>(testUrl)
+    .subscribe(data =>
+          //when observable resolves, result should match test daya
+          expect(data).toEqual(testData)
+     );
+
+// The following 'expectOne()' will match the request's URL.
+// If no requests or multiple requests matched that URL
+// 'expectOne()' would throw
+const req = httpTestingController.expectOne('/data');
+
+//Assert that the request is a GET
+expect(req.request.method).toEqual('GET');
+
+//Respond with mock data, causing Observable to resolve.
+//Subscribe callback asserts that correct data was returned.
+
+req.flush(testData);
+
+//Finally, assert that there are no outstanding requests
+
+httpTestingController.verify();
+});
+
+- The last step, verifying that no requests remain outstanding, is common enough for you to move it
+  an afterEach() strp:
+
+  afterEach(() => {
+       httpTestingController.verify()
+  });
+
+Custom request expectations
+---------------------------
+- If matching by URL isnt sufficient, its possible to implement your own matching function.
+- for example, you could look for an outgoing request that has an authorization header:
+
+ // Expect one request that has an authorization header
+    const req = httpTestingController.expectOne(
+         req => req.headers.has('Authorization')
+      );
+
+Handling more than one request
+------------------------------
+ - If you need to respond to duplicate requests in your test, use the match() API instead of expectOne().
+ - It takes the same arguements but returns an array matching requests. 
+ - Once returned, these requests are moved from future matching and you are responsible for flushing and 
+   verifying them.
+
+//Get all pending requests that match the given URL
+  const requests = httpTestingController.match(url);
+  expect(requests.length).toEqual(3);
+
+// Respond to each request with different results
+  requests[0].flush([]);
+  requests[1].flush([testData[0]);
+  requests[2].flush([testData);
+
+
+Testing for errors
+------------------
+
+- You should test the app's defenses against HTTP requests that fail
+- Call request.flush() with an error message, as seen in the following example
+
+it('can test for 404 error', () => {
+      const emsg = 'deliberate 404 error';
+
+      httpClient.get<Data[]>(testUrl).subscribe(
+         data => fail('should have failed with the 404 error'),
+         (error: HttpErrorResponse) => {
+             expect(error.status).toEqual(404, 'status');
+             expect(error.error).toEqual(emsg, 'message');
+          }
+        );
+
+     const req = httpTestingController.expectOne(testUrl);
+     
+     //Respond with mock error
+     req.flush(emsg, { status: 404, statusText: 'Not Found' });
+   });
+
+Alternatively, you can call request.error() with an ErrorEvent
+
+   it('can test for network error', () => {
+      const emsg = 'simulated network error';
+ 
+      httpClient.get<Data[]>(testUrl).subscribe(
+        data => fail('should have failed with the network error'),
+        (error: HttpErrorResponse) => {
+           expect(error.error.message).toEqual(emsg, 'message');
+        }
+     );
+
+  // Create mock ErrorEvent, raised when something goes wrong at the network level
+  // Connection timeout, DNS error, offline etc
+     const mockError = new ErrorEvent('Network Error', {
+             message: emsg,
+     });
+
+    //respond with mock error 
+    req.error(mockError);
+   });
+
+
+

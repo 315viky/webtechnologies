@@ -1,0 +1,193 @@
+< Context: [ UserInput and event binding, get user input from $event object, $event is clumsy use
+             template reference variable, key event filtering - enter and blur, putting it all together]>
+
+User Input
+__________
+- User actions like clicking a link, pushing a button, and entering text raise , trigger DOM events.
+- Angular Event Binding syntax helps bind those events to component event handlers
+
+<button (click)="onClickMe()">Click me!</button>
+- (click) identifies the buttons click event as the target of binding
+- "onClickMe()" is a template statment which responds to the click event by calling component's onClickMe method
+- template statements execution context can be - component, directive 
+
+Ex:
+@Component({
+ selector: 'app-click-me',
+ template: `
+    <button (click)="onClickMe()">Click me!</button>
+     {{clickMessage}}`
+})
+
+export class ClickMeComponent {
+   clickMessage = '';
+
+   onClickMe() {
+     this.clickMessage = 'You are my hero!';
+   }
+}
+
+- When the user clicks the button, the Angular calls the onClickMe method from ClickMeComponent
+
+
+Get user input from the $event object
+_____________________________________
+
+- Dom event carry a payload of information that may be useful to the component.
+- The following code listens to the key up event and passes the entire event payload ($event) to the
+   component event handler
+
+
+template: `
+<input (keyup)="onKey($event)">
+<p>{{values}}</p>
+
+- when a user presses and releases a key, the keyup event occurs and Angular provides a corresponding
+  DOM event object in the $event variable which this code passes as a parameter to the component's onKey method
+
+
+keyup.Components.ts
+
+export class KeyUpComponent_v1 {
+   values = '';
+
+   onKey(event: any) {//without type info
+      this.values += event.target.value + '|';
+   }
+}
+
+- The properties of an $event object vary depending on the type of DOM event.
+- A mouse event includes different information than an input box editing event
+- All standard DOM event objects have a target property, a reference to the element that raised the event.
+- In this case target refers to the <input> element and event.target.value returns the current contents of 
+  that element
+
+- above example accumulates input box value
+- alternatively each key stroke themselves can be accumulated using event.key
+
+
+Type the $event
+_______________
+
+export class keyUpComponent {
+       values = '';
+
+       onKey(event: KeyBoardEvent) {
+        values += (<HtmlInputElement>event.target).value + '|' ;
+      }
+}
+
+
+Getting user input from a template reference variable
+_____________________________________________________
+
+- Passing the entire $event object to component is providing entire DOM element details to the component
+- This is giving too much details to the components and doesnt address the saperation of concerns that
+   needs to be maintained between html template ( what user sees) and component( how application processes )
+   user input
+
+- To address these, Angular provides 'template reference variables' # 
+- these variables provide direct access to an element from within the template - nothing gets passed to component
+
+
+Example
+LoopBack Component template
+
+<input #box (keyup)=0>
+<p>{{box.value}}</p>
+
+- The template reference variable named box, declared on the <input> element, refers to the <input> element
+  itself
+- The code uses the box variable to get the input elements value and display it with interpolation between <p>
+
+- the template is completely self contained. It doesnt bind to the component and component does nothing
+- type something input box and watch it display below as you type
+- Notice it is binding to 0, which is simplest template statment which angular requires to do but does nothing
+  useful
+
+example rewrite with template reference variable
+
+@Component({
+    selector: "app-key-up2",
+    template: `
+    <input #box (keyup)="onKey(box.value)">
+    <p>{{ Values }}</p>
+    `
+   })
+
+export class KeyUpComponent_v2 {
+   Values = '';
+   onKey(value: string) {
+   Values += value + '|';
+  }
+}
+
+
+- A nice aspect of this approach is component gets clean data values from the view. It no longer
+  requires knowledge of the $event and its structure
+
+Key event filtering( with key.enter )
+_____________________________________
+
+-Instead of capturing each key stroke on the keyUp event, usualy we want to capture the entire input
+ when the user presses enter noting the input is complete
+- This can be achieved using keyup.enter pseudo event
+
+
+<input #box (keyup.enter)="Update(box.value)>
+<p>{{Values}}</p>
+
+
+OnBlur
+_____
+- SOmetimes, user goes out of the input box and clicks outside before pressing enter, in that case all
+  input is lost
+- To tackle this, we can also bind on keyUp.blur pseudo event
+
+<input #box (keyup.enter)="Update(box.value)"
+            (keyup.blur)="Update(box.value)">
+
+<p>{{Value}}</p>
+
+
+Putting it all together in an example
+_____________________________________
+
+src/app/little-tour.component.ts
+
+@Component({
+    selector: 'app-little-tour',
+    template: `
+    <input #newHero
+        (keyup.enter)="addHero(newHero.value)"
+        (blur)="addHero(newHero.value); newHero.value=''"
+
+    <button (click)="addHero(newHero.value)">Add</button>
+
+<ul><li *ngFor="let hero of heroes">{{hero}}<li></ul>
+`
+})
+
+export class LittleTourComponent {
+   heroes = [ 'WindStorm', 'Bombasto', "Magneta', 'Tornado' ];
+   addHero(newHero: string) {
+    if (newHero) {
+       this.heroes.push(newHero);
+    }
+  }
+}
+
+Observations
+____________
+- Use template variables to refer to elements - The newHero template variable refers to <input> element.
+  You can reference newHero from any sibling or child of the <input> element
+- Pas Values not elements - Instead of passing the newHero into the component's addHero method,get the
+  input box value and pass that to addHero
+- Keep template statements simple - The(blur) event is bound to two javascript statements. the first
+  statment calls addHero method. The second statment, newHero='', clears the input box after a new hero is
+  added to the list
+
+
+
+
+

@@ -1,0 +1,484 @@
+Steps to set up and run angular project from scratch
+and configure with webpack for both development and production mode
+____________________________________________________________________
+
+Angular 7: set up a basic app
+
+- Create a new package.json file and add the following lines to install angular
+  and its dependencies
+
+"dependencies": 
+  "@angular/animations": "~7.0",
+  "@angular/common": "~7.0",
+  "@angular/compiler": "~7.0",
+  "@angular/compiler-cli": "~7.0",
+  "@angular/core": "~7.0",
+  "@angular/forms": "~7.0",
+  "@angular/http": "~7.0",
+  "@angular/platform-browser": "~7.0",
+  "@angular/platform-browser-dynamic": "~7.0",
+  "@angular/platform-server": "~7.0",
+  "@angular/router": "~7.0",
+  "@angular/upgrade": "~7.0",
+  "core-js": "~2.5",
+  "rxjs": "~6.3",
+  "zone.js": "~0.8"
+}
+
+- create a new src folder and following folder files inside it
+- All our angular app business logic will be in this folder
+
+src
+|__ app
+    |__ modules
+        |__ menu
+            |__ components
+                |__ menu
+                    |__ menu.component.html
+                    |__ menu.component.scss
+                    |__ menu.component.ts
+            |__ menu.module.ts
+            |__ menu-routing.module.ts
+|__ shared
+         |__ components
+             |__ home
+                 |__ home.component.html
+                 |__ home.component.scss
+                 |__ home.component.ts
+|__ app.component.html
+        |__ app.component.scss        
+        |__ app.component.ts
+        |__ app.module.ts
+        |__ app-routing.module.ts
+|__ index.html
+|__ main.ts
+
+- Every application has at least one Angular module, the root module  that you
+  bootstrap to launch the application. 
+- By convention it is called the AppModule.
+- I create another module called MenuModule to show how you can do lazy loading
+  in your project
+
+
+SOme important points:
+
+-Index.html
+
+Add <base href="/"> tells our Angular router how to compose navigation URLs
+This line means that your app will start from root folder i.e locally  it would
+consider localhost:3000/ and on server it would consider root folder
+
+
+-app-routing.module.ts
+
+There are three main steps to setting up a lazy loaded feature module:
+
+Create the feature module
+Create the feature module’s routing module
+Configure the routes
+{path: ‘menu’, loadChildren:’./modules/menu/menu.module#MenuModule’} 
+tells Angular to lazy load our feature module MenuModule by the time the 
+user visit the /menu route.
+
+
+TypeScript Configuration
+________________________
+Add the following lines to your package.json file:
+
+"devDependencies": {
+  "@types/core-js": "~2.5",
+  "@types/node": "~10.12",
+  "typescript": "~3.1"
+}
+
+
+Create in your root project folder a tsconfig.json
+
+{
+  "compilerOptions": {
+    "target": "es5",
+    "module": "commonjs",
+    "moduleResolution": "node",
+    "sourceMap": true,
+    "emitDecoratorMetadata": true,
+    "experimentalDecorators": true,
+    "noImplicitAny": true,
+    "suppressImplicitAnyIndexErrors": true,
+    "lib": ["es6", "dom"],
+    "typeRoots": ["node_modules/@types"]
+  },
+  "exclude": ["node_modules"]
+}
+
+This is a basic TypeScript configuration  file.
+Its essential to install node and core-js types definitions
+Without it , Typescript wont be able to compile our angular application to 
+Javascript
+
+Webpack configuration for development mode(Just-in-time compilation)
+____________________________________________________________________
+
+- First of all what does compilation means ?
+- It doesnt mean compiling transcript files to javascript, this is not related
+  to Angular
+- Angular itself needs to compile your HTML templates into Javascript
+ and this can be occurred at 2 different points of time:
+
+Lets understand this better here
+https://stackoverflow.com/questions/48942691/how-angular-builds-and-runs
+
+
+After your app is downloaded in the Browser (JiT)
+
+ Build             Runtime
+                                Source
+Source COde =>     Template => (Browser) => Angular2
+                   Parser                   (Javascript)
+                   AST
+
+                  Angular Compiler 
+
+Right after development, at build time, before your app is downloaded in
+the browser (AoT)
+
+            Build              Runtime
+                                Source
+Source COde       Template => (Browser) => Angular2
+                   Parser                   (Javascript)
+                   AST
+
+                  Angular Compiler
+
+What is webpack?
+
+Webpack is an open source JavaScript module bundler.
+Its main purpose is to bundle JavaScript files for usage in a browser, yet is
+also capable of transforming, bundling or packaging just about any resource or
+asset. Webpack takes modules with dependencies and generates static assets
+representing those modules.
+
+Its a module bundler primarily for JavaScript, but it can transform front-end
+assets like HTML, CSS, even images if the correspondng plugins are included
+
+To tell webpack how to bundle our application, we have to configure what we
+call the core concepts
+
+Entry: An entry point indicates which module webpack should use to begin
+       building out its internal dependency graph. Webpack will figure out
+       which other modules and libraries that entry point depends on( directly
+       and indirectly)
+Output: The Output property tells webpack where to emit the bundles it creates
+        and how to name these files. It defaults ./dist/main.js for the main
+        output file and the ./dist for any other generated file
+
+Loaders: At a high level, loaders have two properties in your webpack
+         configuration
+  - The "test" property identifies which file or files should be transformed
+  - The "use" property indicates which loader should be used to do the 
+     transforming
+
+Plugins : while loaders are used to transform certain types of modules,plugins
+          can be leveraged to perform a wider range of tasks like bundle
+          optimization, asset management, and injection of environment variables
+
+All of these must be set uo in the webpack configuration file
+        webpack.config.js
+
+
+Configuring webpack
+In the src folder we need to create 2 more files:
+
+vendor.ts that only imports the application's third-party modules.
+
+polyfills.ts we need polyfills to run an Angular application in most browsers
+as explained in the Browser Support guide. This bundle file will load first so 
+this is a good place to configure the browser environment for production or 
+development.
+
+Create a new config folder and the following files inside:
+
+- webpack.config.common.js : configuration that we will use for development and
+  production
+
+webpack.config.common.js
+___________________________
+Entry - For this application(and for most of them actually), we have 3 different
+entry points: vendor.ts, polyfills.ts and main.ts
+entry: {
+vendor: './src/vendor.ts',
+polyfills: './src/polyfills.ts',
+main: './src/main.ts
+}
+
+Loaders - We load .html files with html-loader which is pretty standard.
+-Loading .scss files is a bit tricky
+-First of all we need to load sass files by using two loaders 
+- sass-loader and css-loader
+- If you want to make debugging easy, especially in development mode, its
+  really important to add sourceMap: true as options
+- In an Angular application, we add styles to component by passing a file path
+  to styleUrls array as follows
+  styleUrls: ["./path/styles.scss"]
+  but we need to have style as a string and the to-string-loader will do it
+  for us
+
+module: {
+        //html loader to load html files
+        rules: [
+            {
+                test: /\.html$/,
+                loader: 'html-loader'
+            },
+            //using sass loader and css loader to load css files.source map true for debugging in dev 
+            {
+                test: /\.(scss|sass)$/,
+                use: [
+                    { loader: 'style-loader', options: { sourceMap: isDev } },
+                    { loader: 'css-loader', options: { sourceMap: isDev } },
+                    { loader: 'sass-loader', options: { sourceMap: isDev } }
+                ],
+                include: helpers.root('src', 'assets')
+            },
+            //to-string-loader to convert css to string
+            {
+                test: /\.(scss|sass)$/,
+                use: [
+                    'to-string-loader',
+                    { loader: 'css-loader', options: { sourceMap: isDev } },
+                    { loader: 'sass-loader', options: { sourceMap: isDev } }
+                ],
+                include: helpers.root('src', 'app')
+            }
+
+
+Plugins - CleanWebpackPlugin will remove/clean your build folders before
+          building again.
+          HtmlWebpackPlugin will generate an HTML5 file for you that includes
+          all your webpack bundles in the body using script tags.
+    
+new CleanWebpackPlugin(
+    helpers.root('dist'),
+    {
+        root: helpers.root(),
+        verbose: true
+    }
+),
+new HtmlWebpackPlugin({
+    template: 'src/index.html'
+})   
+
+webpack.config.dev.js
+______________________
+
+webpack.config.dev.js is our webpack configuration that we will use for development mode 
+only.
+
+//webpack uses its built in optimizations accordingly
+mode: "development"
+
+//Controls source map generation. For debugging purpose
+devtool: 'cheap-module-eval-source-map'
+
+//How and where webpack should output is bundles, assets and anything else you
+  bundle or load with webpack
+
+output: {
+    path: helpers.root('dist'),
+    publicPath: '/',
+    filename: '[name].bundle.js',
+    chunkFilename: '[id].chunk.js'
+}
+
+//skip emitting phase when errors while compiling
+optimization: {
+    noEmitOnErrors: true
+}
+
+//Loaders for non js files 
+- angular-router-loader - enables string based module loading with the
+  angular router , helps with lazy loading
+
+angular2-template-loader - for angular component templates and styles loader
+
+awesome-typescript-loader - for loading typescript files
+babel loader- allows transpiling javascript files
+
+{
+    test: /\.ts$/,
+    loaders: [
+        'babel-loader',
+        {
+            loader: 'awesome-typescript-loader',
+            options: {
+                configFileName: helpers.root('tsconfig.json')
+            }
+        },
+        'angular2-template-loader',
+        'angular-router-loader'
+    ],
+    exclude: [/node_modules/]
+}
+
+devServer: {
+    historyApiFallback: true,
+    stats: 'minimal'
+}
+
+When using the HTML5 History API, the index.html page will likely have to be served in place of any 404 responses. For that we need to enable historyApiFallback.
+
+stats option lets you precisely control what bundle information gets displayed. This can be a nice middle ground if you want some bundle information, but not all of it.
+
+Adding scripts
+----------------
+
+Add the following lines to your package.json file:
+
+"scripts": {
+  "build:dev": "webpack-dev-server --inline --hot --progress --port 8080"
+}
+--hot enables webpack Hot Module Replacement (HMR). It exchanges, adds, 
+or removes modules while an application is running, without a full reload. 
+This can significantly speed up development in a few ways:
+
+Retain application state which is lost during a full reload.
+Save valuable development time by only updating what’s changed.
+Modifications made to CSS/JS in the source code results in an instant browser
+ update which is almost comparable to changing styles directly in the
+ browser’s dev tools.
+
+Now you are all setup! You can run npm run build:dev open your browser and
+ navigate to localhost:8080.
+
+Webpack configuration for production mode
+_________________________________________
+Ahead of time compilation
+
+- With AoT, the browser downloads a pre-compiled version of the application
+ The browser loads the executable code so it can render the application
+ immediately without waiting to compile the app first
+
+- The compiler inlines external HTML templates and CSS style sheets within the
+  application javascript, eleminating saperate ajax requests for these source
+  files
+
+- There is not need to download the Angular compiler and compiler is roughly
+  half of angular itself, so omitting it dramatically reduces the application
+  payload
+
+- The AoT compiler detects and reports template binding errors during the 
+  build step before users can see them.
+- AoT compiles HTML templates and components into JavaScript files long before
+  they are served to the client. 
+- With no templates to read and no risky client-side HTML or
+  JavaScript evaluation, there are fewer opportunities for injection attacks.
+
+
+webpack.config.prod.js
+
+mode: 'production'
+
+output: {
+    path: helpers.root('dist'),
+    publicPath: '/',
+    filename: '[hash].js',
+    chunkFilename: '[id].[hash].chunk.js'
+}
+
+- output our bundles to dist folder
+- hash to file names to leverage client level cache 
+
+[id] returns the chunk id.
+[path] returns the file path.
+[name] returns the file name.
+[ext] returns the extension. [ext] works for most available fields.
+[hash] returns the build hash. If any portion of the build changes, 
+this changes as well.
+[chunkhash] returns an entry chunk-specific hash. Each entry defined in the
+configuration receives a hash of its own. If any portion of the entry changes,
+the hash will change as well. [chunkhash] is more granular than [hash] by 
+definition.
+[contenthash] returns a hash generated based on content.
+
+
+
+optimization: {
+//stop on errors while compiling        
+noEmitOnErrors: true,
+        
+  splitChunks: {
+            chunks: 'all' //chunks selected for optimization
+        },
+        runtimeChunk: 'single', //single runtime instance
+        minimizer: [
+           //minify javascript files 
+	   new UglifyJsPlugin({
+                cache: true,
+                parallel: true
+            }),
+           //minify css files
+            new OptimizeCSSAssetsPlugin({
+                cssProcessor: cssnano,
+                cssProcessorOptions: {
+                    discardComments: {
+                        removeAll: true
+                    }
+                },
+                canPrint: false
+            })
+        ]
+    },
+
+//Ahead of time compilation
+
+module: {
+    rules: [
+        {
+            test: /(?:\.ngfactory\.js|\.ngstyle\.js|\.ts)$/,
+            loader: '@ngtools/webpack'
+        }
+    ]
+}
+
+plugins: [
+    new ngw.AngularCompilerPlugin({
+        tsConfigPath: helpers.root('tsconfig.aot.json'),
+        entryModule: helpers.root('src', 'app', 'modules', 'app', 'app.module#AppModule')
+    })
+]
+
+
+
+@ngtools/webpack is the official plugin that AoT compiles your Angular components and modules. 
+The loader works with webpack plugin to compile your TypeScript. 
+It’s important to include both, and to not include any other TypeScript 
+compiler loader.
+
+
+Flow of events with Just-in-Time Compilation
+Development of Angular application with TypeScript.
+Compilation of the application with tsc.
+Bundling.
+Minification.
+Deployment.
+Once we’ve deployed the app and the user opens her browser, she will go through the following steps (without strict CSP):
+Download all the JavaScript assets.
+Angular bootstraps.
+Angular goes through the JiT compilation process, i.e. generation of JavaScript for each component in our application.
+The application gets rendered.
+
+Flow of events with Ahead-of-Time Compilation
+In contrast, with AoT we get through the following steps:
+Development of Angular application with TypeScript.
+Compilation of the application with ngc.
+Performs compilation of the templates with the Angular compiler and generates (usually) TypeScript.
+Compilation of the TypeScript code to JavaScript.
+Bundling.
+Minification.
+Deployment.
+
+Although the above process seems lightly more complicated the user goes only through the steps:
+Download all the assets.
+Angular bootstraps.
+The application gets rendered.
+As you can see the third step is missing which means faster/better UX.
+

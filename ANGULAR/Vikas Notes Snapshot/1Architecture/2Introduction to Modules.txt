@@ -1,0 +1,120 @@
+Context : [Compilation context + rootmodule + Metadata + NgModules & Components + Angular and JS modules system +
+            Angular Libraries]
+
+Introduction to modules
+_______________________
+
+- ANgular apps are modular and angular has its own modularity system called Ng Modules
+- NgModules can have components, service providers and other code files specific to containing ngModule
+- NgModules can import functionality exported by other NgModules, export selected functionality for use by other ngmodules
+- Every angular app has at least one NgModule class, 'root Module' named 'App Module' and resides in file
+  named app.module.ts. APP is launched by bootstrapping the root NgModule
+-Its called a root NgModule as it can include child NgModules in a hierarchy of any depth 
+
+NgModule metadata
+_________________
+- defined by a class decorated with @NgModule().
+- @NgModule() decorator is a function that takes a 'Singleton Meta Object' whose properties describe the module
+- The most important properties are
+   - declarations - components, directives, pipes that belong to this ngModule
+   - exports - subsets of declarations that should be visible and usable in component templates of other ngmodules
+   - imports - other modules whose exported classes are needed by component templates declared in this NgModule
+   - providers - Creators of services that this NgModule contributes to the global collection of services, they 
+                 become accessable to all parts of app( specify providers at component level, preferred )
+   - bootstrap - the main app view component, called the 'root component', which hosts all other app views
+                 only the root NgModule should set the bootstrap property
+---------------------------------------------------------------------------------
+- Sample root NgModule Definition
+src/app/app.module.ts
+
+import { NgModule } from '@angular/core'
+/* to import @ngModule decorator
+import { BrowserModule } from '@angular/platform-browser'
+/*BrowserModule provides services that are essential to launch and run a browser app. BrowserModule also re-exports CommonModule from @angular/common , 
+which means that components in the AppModule module also have access to the Angular directives every app needs, such as NgIf and NgFor .*/
+
+@NgModule({
+imports: [ BrowserModule ],
+providers: [ Logger ],
+declarations: [ AppComponent ],
+exports: [ AppComponent ],
+bootstrap: [ AppComponent ]
+})
+
+export class AppModule {}
+------------------------------------------------------------------------------------
+
+NgModules and Components
+________________________
+
+-NgModules provides a compilation context to their components
+-Root NgModule always has a root component that is created during bootstrap
+-Any NgModule can include any number of additional components - which can be loaded throught
+ the router or created through template
+-components that belong to a same ngModule share a compilation context
+                 Root Comp A                     Root Comp B
+             A1       A2      A3               B1    B2      B3
+      NgModule A                           NgModule B
+               
+
+
+- A component and its template together define a 'view'
+- A component can define a view hierarchy, which allows to define arbitrary complex areas of the
+  screen that can be created, modified and distroyed as a unit
+- A view hierarchy can mix views defined in components that belong to same and different NgModules.
+
+- When a component is created, its associated directly with a single view, called the 'host' view.
+- The host view can be a root of a view hierarchy which contain embedded views which inturn are the
+  host views of other components
+- these host views can be in same ngmodule or imported from different ngmodule.
+- views in the tree can be nested to any depth
+                                      
+                                         Host View CompA
+                          Embedded view A1   Embedded view A2    Embedded view B3
+                 Embedded view B1 Embedded view B2    Embedded view B3
+
+Note: The hierarchical structure of views is a key factor in the way 
+Angular detects and responds to changes in the DOM and app data.
+
+NgModules and JavaScript Modules
+________________________________
+- NgModule system is different from and unrelated to Javascript( ES2015 ) module system for managing collections of
+  javascript objects
+- these are complementary module systems that you can use together to write your apps
+- In javascript, each file is a module and all objects defined in the file belong to that module.
+- The module declares some objects to be public by marking them with the export key word
+- Other javascript modules use the import statements to access public objects from other modules
+
+
+import { NgModule } from '@angular/core';
+//I think angular/core is like a ecmas2015 JS module system
+import { AppComponent } from  './app.component
+
+export class AppModule {} // using the JS module system
+
+Angular Libraries
+___________________
+- Angular loads a collection of JS modules - think them as ANgular library Modules
+- Each angular library name begins with @angular prefix
+- Install them with node package manager npm and import parts of them with JS import statements
+
+           ---------------------------------------
+                 Library Module
+           Component     |      Directive
+             {}                   {}
+
+           Service    Value      FN
+             {}        3.145      lambda()
+
+           -------------------------------------------
+
+For example, import Angular's Component decorator from @angular/core library like this
+import { Component } from '@angular/core'; // JS style import
+
+Import browserModule which is a NgModule from the platform-browser library in JS style import
+import { BrowserModule } from '@angular/platform-browser';
+- If any thing inside BrowserModule is needed within another root NgModule, add an import to the decorator of NgModule
+
+imports:  [ BrowserModule ], //Angular style
+
+- In a way we are using the Angular and Javascript module systems together

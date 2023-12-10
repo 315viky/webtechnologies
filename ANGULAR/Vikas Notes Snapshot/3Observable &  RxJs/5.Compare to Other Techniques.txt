@@ -1,0 +1,213 @@
+Observables compared to other techniques
+-----------------------------------------
+<context: [compare Promises( creation & subscription, chanining, cancellation, errorHandling), 
+                             EventHanlders, arrays]>
+
+- You can often use observables instead of promises to deliver values asynchronously.
+- Similarly, observables can take the place of event handlers
+- Finally, because observables deliver multiple values, you can use them where you might otherwise build and
+  operate on arrays
+
+Observables compared to promises
+--------------------------------
+
+- Observables are declarative; computation does not start until subscription. Promises execute immediately
+  on creation. This makes observables useful for defining recipes that can be run whenever you need the 
+  result.
+
+- Observables provide many values. Promises provide one. This makes observables useful for getting multiple
+  values over time
+
+- Observables differentiate between chaining and subscription. Promises only have .then() clauses.
+  This makes observables useful for creating complex transformation recipes to be used by other part of the
+  system, without causing the work to be executed
+
+- Observables subscribe() is responsible for handling erors. Promises push errors to the child promises.
+  This makes observables useful for centralized and predictable error handling
+
+
+Creation and subscription
+-------------------------
+
+- Observables are not executed until a consumer subscribes. 
+- The subscribe() executes the defined behaviour once and it can be called again.
+- Each subscription has its own computation
+- Resubscription causes recomputation of values
+
+//declare a publishing operation
+new Observable((observer) => { subscriber_fn });
+
+//initatiate execution
+observable.subscribe(() => {
+     // observer handles notifications
+   });
+
+
+- Promises execute immediately, and just once. 
+- The computation of the result is initiated when the promise is created
+- There is no way to restart work.
+- All then clauses(subscriptions) share the same computation
+
+
+//initate execution
+new Promise((resolve, reject) => { executer_fn });
+
+//handle the return the value
+promise.then((value) => {
+       //handle result here
+     });
+
+
+Chaining
+---------
+
+- Observables differentiate between transformation function such as a map and subscription.
+- Only subscription activates the subscriber function to start computing the values
+
+Observable.map((v) => 2*v);
+
+
+- Promises donot differentiate between the last .then clauses(equivalent to subscription) and the intermediate
+  .then clauses (equivalent to map)
+
+promise.then((v) => 2*v);
+
+
+Cancellation
+------------
+
+- Observable subscrition are cancellable. 
+- Unsubscribing removes the listener from receiving further values  and notifies the subscriber function to 
+  cancel the work
+
+const sub = obs.subscribe(...);
+sub.unsubscribe().
+
+- Promises are not cancellable
+
+Error Handling
+--------------
+
+- Observable execution errors are delivered to the susbcriber's error handler, and the subscriber
+  automatically unsubscribes from the observable
+
+obs.subscribe(() => {
+     throw Error('my error');
+   });
+
+- Promises push error to child promises
+
+promise.then(() => {
+      throw Error('my error');
+});
+
+Cheat sheet
+-----------
+- The following code snippets how the same kind of operation is defined using observables and promises
+
+
+Operation    Observable                              Promise
+
+Creation     new Observable((observer) => {          new Promise((resolve, reject) => {
+                 observer.next(123);                       resolve(123);
+             });                                     });
+
+
+Transform    obs.map((value) => value * 2 );         promise.then((value) => value * 2);
+
+
+Subscribe    sub = obs.subscribe((value) => {        promise.then((value) => {
+                console.log(value)                      console.log(value)
+             });                                     });
+
+Unsubscribe  sub.unsubscribe();                      Implied by promise resolution  
+
+
+
+
+Observables compared to events API
+__________________________________
+
+- Observables are very similar to event handlers that use the events API.
+- Both techniques define notification handlers, and use them to process multiple values delivered over time.
+- Subscribing to an observable is equivalent to adding an event listener.
+- One significant difference is that you can configure an observable to transform an event before passing 
+  event to the handler
+
+- Using observables to handle events and asynchronous operations can have the advantage of greater 
+  consistency in contexts such as HTTP requests.
+
+- Here are some code samples that illustrate how the same kind of operation is defined using observabkes
+  and the events API
+
+
+Creation       Observable                                     Events API
+
+Creation &     //Set up                                        function handler(e) {
+Cancellation   let clicks$ = fromEvent(buttonE1, 'click');          console.log('Clicked', e)
+               //Begin listening                               } 
+               let subscription = clicks$.           
+               subscribe(e => console.log('Clicked', e))      //Setup and begin listening
+               //stop listening                               button.addEventListner('click', handler);  
+               subscription.unsubscribe();                     //stop listening
+                                                              button.removeEventListner('click', handler);
+
+Subscrition    observable.subscribe(() => {                   element.addEventListener(eventName, (event) => {
+                  //notification handlers here               //notification handler here     
+               });                                           });
+
+
+
+Configuration  Listen for Keystrokes, but provide a stream     Doesnt support configuration
+              representing the value in the input
+               
+               fromEvent(inputE1, 'keydown').pipe(              element.addEventListener(eventName, (event) => {
+                 map(e => e.target.value)                        //cannot change the passed event into another
+               );                                                  value before it gets to the handler 
+                                                                });
+
+  
+Observables compared to arrays
+------------------------------
+
+- An observable produces values over time. An array is created as a static set values. 
+- In a sense, observables are asynchronous where arrays are synchronous.
+   -> represents asynchronous value delivery in the below examples
+
+
+
+             Observable                                        Array
+
+Given        obs: ->1->2->3->5->7                              arr: [1, 2, 3, 5, 7]
+             obsB: ->'a'->'b'->'c'                             arrB: ['a', 'b', 'c']
+
+
+concat       obs.concat(obsB)                                  arr.concat(arrB)
+             ->1->2->3->5->7->'a'->'b'->'c'                    [1, 2, 3, 5, 7, 'a', 'b', 'c']
+
+
+filter       obs.filter((v) => v>3)                            arr.filter((v) => v>3)
+             ->5->7                                            [5,7]
+
+
+find         obs.find((v) => v>3)                               arr.find((v) => v>3)
+             ->5                                                5
+
+
+findIndex()  obs.findIndex((v) => v>3)                          arr.findIndex((v) => v>3)
+             ->3                                                3
+
+
+forEach()    obs.forEach((v) => {                               arr.forEach((v) => {
+               console.log(v);                                    console.log(v);
+             });                                                 })
+             1 2 3 5 7                                           1 2 3 5 7
+
+
+map          obs.map((v) => -v)                                  arr.map(v => -v)    
+             ->-1->-2->-3->-5->-7                                [-1, -2, -3, -5, -7]
+
+
+
+reduce       obs.scan((s,v)=> s+v, 0)                            arr.reduce((s,v) => s+v, 0 ) 
+             ->1->3->6->11->18                                   18

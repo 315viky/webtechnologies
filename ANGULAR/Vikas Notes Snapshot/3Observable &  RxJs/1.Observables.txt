@@ -1,0 +1,403 @@
+< context: [ Observables, Basic usage and terms, defining observables - create subscriber function, which will be 
+   called when subscribe is called on the observable, subscriber takes observer( nothing but next, error, complete handlers
+   , Subscribing by calling ObservableInstance.subscribe, Creating Observables, Multicasting - multiple subscriptions
+     single notifier, Error Handling useing error callback ]>
+
+- Observables provide support for passing messages between publishers and subscribers in your application
+- Observables offer significant benefits over other techniques for event handling, asynchronous programming,
+   and handling multiple values
+
+- Observables are declarative - that is, you define a function for publishing values, but it is not executed
+  until a consumer scubscribes to it.
+- The subcribed consumer then receives notifications until the function completes or until they unsubscribe.
+
+- An Observable can deliver multiple values of any type - literals, messages or events, depending on the context.
+- The API for receiving values is the same whether the values are delivered synchronously or asynchronously.
+- Because the setup and teardown logic are both handled by the observable, your application code only needs to
+  worry about subcribing to consume values and when done unsubscribing.
+- Whether the stream was keystrokes, an HTTP response, or an interval timer, the interface for listening to values
+  and stopping listening is the same
+
+Basic Usage and Terms
+_____________________
+
+- Observable instance with subscriber function - that knows to generate messages/notifications/values to be 
+  published
+
+//Create an observable that will start listening to geolocation updates when a consumer subscribes
+- note obervable instance takes an observer object - which are nothing but event handlers for the notification
+  the consumer receives( event handlers are call backs)
+// ALso note all the publishing/subscription/unscubscribe is encapsulated withing obervable declaration
+const locations =  new Observable((observer) => {
+    //Get the next and error callbacks. These will be passed in when the consumer subscribes
+    const {next, error} = observer;
+    let watchId;
+
+    //Simple geolocation API check provides values to publish. This is nothing but the subsription
+      function executed when subscribe is called by consumers and this generates values and publishes
+      it to consumers
+
+    if('geolocation' in navigator) {
+       watchId = navigator.geolocation.watchPosition(next, error);   //pass the eventhandler to publisher
+       } else {
+       error('Geolocation not available');
+    }    
+
+  // when the consumer unsubscribes, clean up data ready for next subscription
+   return {unsubscribe() { navigator.geolocation.clearWatch(watchId); }};
+ });
+
+// Call subscribe() to start listening for updates
+   const locationsSubscription = locations.subscribe({
+       next(position) { console.log('Current Position: ', position); },
+       error(msg) { console.log('Error Getting Location: ', msg); }
+   }); 
+
+// Stop listening for location after 10 seconds
+   setTimeout(()=>{ locationsSubscription.unsubscribe(); }, 10000);
+
+
+Defining Observers
+__________________
+
+- A handler for receiving observable notifications implements the Observer interface.
+- It is an object that defines the callback methods to handle the three types of notifications that an 
+  observable can send
+
+1> Next : Required, not optional. A handler for each delivered value. Called zero or more times after execution
+          starts
+2> Error : Optional. A handler for an error notification. An error halts execution of the observable instance.
+3> Complete : Optional. A handler for the execution-complete notification. Delayed values can continue to be
+              delivered to the 'next' handler after execution is complete
+
+
+- An observer object can define any combination of these handlers. 
+- If you dont supply handler for a notification type, the observer ignores notifications of that type
+
+
+Subscribing
+___________
+
+- An Observable instance begins publishing values only when someone subscribes to it
+- You subscribe by calling the subscribe() method of the instance, passing an observer object to receive 
+  the notifications
+
+- In order to show how subscribing works, we need to create a new observable.
+- There is a constructor that you use to create new instances ( new Observable(observer) => {} ), but for 
+  illustration, we can use some methods from the RxJS library that create simple observables of frequently
+  used types
+   - of(...items) - Returns an Observable instance that synchronously delivers the values provided as arguements
+   - from(iterable) - Converts its arguements to an Observable instance. This method is used to convert an array
+                      to an observable 
+
+Example
+
+//observable that emits three values
+Const myObservable = of( 1, 2, 3);
+
+//create observer - defining handles
+Const myObserver = {
+ next: x => console.log('Observer got next value: '+ x ),
+ Error: err => console.error(' observer got an error: '+ err ),
+ complete: () => console.log(' observer got a complete notification),
+};
+
+Execute with Observer object
+
+myObservable.subscribe( myobserver);
+
+// Logs:
+// Observer got a next value: 1
+// Observer got a next value: 2
+// Observer got a next value: 3
+// Observer got a complete notification
+
+
+- Alternatively, the subscribe() method can accept callback function definitions in line, 
+  for next, error, and complete handlers. 
+For example, the following subscribe() call is the same as the one that specifies the 
+ predefined observer:
+
+myObservable.subscribe(
+  x => console.log('Observer got a next value: ' + x),
+  err => console.error('Observer got an error: ' + err),
+  () => console.log('Observer got a complete notification')
+);
+
+
+- In either case, a next handler is required. The error and complete handlers are optional
+- Note that a next function  could receive , for instance, message strings, or event objects,
+  values, or structures, depending on the context.
+- As a general term data published by the observable is termed as 'stream'.
+- Any type of value can be represented by the observable and values are published as streams  		
+
+
+Creating Observables
+_____________________
+
+Const myObservable = of( 1, 2, 3);
+
+The observable of(1, 2, 3) coming from RxJs can be written as follows
+
+function sequenceSubscriber( observer ) {
+// synchronously deliver 1, 2 and 3 then complete
+   observer.next(1);
+   observer.next(2);
+   observer.next(3);
+   observer.complete();
+
+// unsubscribe function doesnt need to do anthing in this becuase values are delivered synchronously
+   return {unsubscribe() {} };
+}
+
+//create a new observable and print the result of each notification 
+sequence = new Observable( sequenceSubscriber );
+
+ sequence.subscribe({
+      next(num) { console.log(num); },
+      complete() { console.log('Finished sequence'); }
+  });
+
+- Extending the above example to  create observable that publishes events. 
+
+//fromEvent creates an Observable that emits
+function fromEvent(target, eventName) {
+   return new Observable((observer) => {
+       const handler = (e) => observer.next(e);
+
+// Add the event handler to the target
+        target.addEventListener(eventName, handler);
+
+return () => {
+       //Detach the event handler from the target
+       target.removeEventList(eventName, handler);
+ }; 
+
+Use custom fromEvent function
+_____________________________
+
+const ESC_KEY = 27;
+const nameInput = document.getElementById('name') as HTMLInputElement;
+
+const subscription = fromEvent(nameInput, 'keyDown')
+   .subscribe((e: KeyboardEvent) => {
+   if(e.keyCode === ESC_KEY) {
+      nameInput.value = '';
+    }
+  });
+
+
+/***** Testing ****************/
+//API returning Observable
+fromEvent( target, event) {
+ return new Observable((Observer)=>{
+  //publisher in observer
+  handler = (e) => Observer.next(e);
+
+  target.addEventListner(event, handler);
+
+  return () => {
+     target.removeEventList(event, handler);
+  }
+ }
+}
+
+//Subsribe to the Observable
+subsciption = fromEvent( nameInput, 'keyDown' ).
+  subscribe( (e: KeyBoardEvent) => {
+   if( e.Keycode ==- ESC_KEY ){
+     nameInput.value = '';
+   }
+   
+  })  ; 
+
+/*******Testing*****************/
+
+
+Multicasting
+____________
+
+- A typical observable creates a new independent execution for each subscribed observer.
+- When an observer subscribes, the observable wires up an event handler and delivers values to that observer
+- When a second observer subscribes, the observable then wires up a new event handler and delivers values to
+   the second observers in a saperate execution
+
+
+- Sometimes instead of starting an independent execution for each subscriber, you want each subscription
+  to get the same values, even if the values have already started emitting
+
+- this might be the case with something like an observable of clicks on the document object
+
+
+- Multicasting is the practice of broadcasting to a list of multiple subscribers in a single execution.
+- With a multicasting observable, you dont register multiple listener on the document, but instead reuse 
+  the first listner and send values out to each subscriber
+
+
+function sequenceSubscriber(observer) {
+  const seq = [1, 2, 3];
+  let timeoutId;
+
+  // Will run through an array of numbers, emitting one value
+  // per second until it gets to the end of the array.
+  function doSequence(arr, idx) {
+    timeoutId = setTimeout(() => {
+      observer.next(arr[idx]);
+      if (idx === arr.length - 1) {
+        observer.complete();
+      } else {
+        doSequence(arr, ++idx);
+      }
+    }, 1000);
+  }
+
+  doSequence(seq, 0);
+
+  // Unsubscribe should clear the timeout to stop execution
+  return {unsubscribe() {
+    clearTimeout(timeoutId);
+  }};
+}
+
+// Create a new Observable that will deliver the above sequence
+const sequence = new Observable(sequenceSubscriber);
+
+sequence.subscribe({
+  next(num) { console.log(num); },
+  complete() { console.log('Finished sequence'); }
+});
+
+// Logs:
+// (at 1 second): 1
+// (at 2 seconds): 2
+// (at 3 seconds): 3
+// (at 3 seconds): Finished sequence
+
+// Subscribe starts the clock, and will emit after 1 second
+sequence.subscribe({
+  next(num) { console.log('1st subscribe: ' + num); },
+  complete() { console.log('1st sequence finished.'); }
+});
+
+// After 1/2 second, subscribe again.
+setTimeout(() => {
+  sequence.subscribe({
+    next(num) { console.log('2nd subscribe: ' + num); },
+    complete() { console.log('2nd sequence finished.'); }
+  });
+}, 500);
+
+// Logs:
+// (at 1 second): 1st subscribe: 1
+// (at 1.5 seconds): 2nd subscribe: 1
+// (at 2 seconds): 1st subscribe: 2
+// (at 2.5 seconds): 2nd subscribe: 2
+// (at 3 seconds): 1st subscribe: 3
+// (at 3 seconds): 1st sequence finished
+// (at 3.5 seconds): 2nd subscribe: 3
+// (at 3.5 seconds): 2nd sequence finished
+
+
+
+Multicast subscriber
+function multicastSequenceSubscriber() {
+  const seq = [1, 2, 3];
+  // Keep track of each observer (one for every active subscription)
+  const observers = [];
+  // Still a single timeoutId because there will only ever be one
+  // set of values being generated, multicasted to each subscriber
+  let timeoutId;
+
+  // Return the subscriber function (runs when subscribe()
+  // function is invoked)
+  return (observer) => {
+    observers.push(observer); ( keep adding the observers and continue sending notifications not from start )
+    // When this is the first subscription, start the sequence
+    if (observers.length === 1) {
+      timeoutId = doSequence({
+        next(val) {
+          // Iterate through observers and notify all subscriptions
+          observers.forEach(obs => obs.next(val));
+        },
+        complete() {
+          // Notify all complete callbacks
+          observers.slice(0).forEach(obs => obs.complete());
+        }
+      }, seq, 0);
+    }
+
+    return {
+      unsubscribe() {
+        // Remove from the observers array so it's no longer notified
+        observers.splice(observers.indexOf(observer), 1);
+        // If there's no more listeners, do cleanup
+        if (observers.length === 0) {
+          clearTimeout(timeoutId);
+        }
+      }
+    };
+  };
+}
+
+// Run through an array of numbers, emitting one value
+// per second until it gets to the end of the array.
+function doSequence(observer, arr, idx) {
+  return setTimeout(() => {
+    observer.next(arr[idx]);
+    if (idx === arr.length - 1) {
+      observer.complete();
+    } else {
+      doSequence(observer, arr, ++idx);
+    }
+  }, 1000);
+}
+
+// Create a new Observable that will deliver the above sequence
+const multicastSequence = new Observable(multicastSequenceSubscriber());
+
+// Subscribe starts the clock, and begins to emit after 1 second
+multicastSequence.subscribe({
+  next(num) { console.log('1st subscribe: ' + num); },
+  complete() { console.log('1st sequence finished.'); }
+});
+
+// After 1 1/2 seconds, subscribe again (should "miss" the first value).
+setTimeout(() => {
+  multicastSequence.subscribe({
+    next(num) { console.log('2nd subscribe: ' + num); },
+    complete() { console.log('2nd sequence finished.'); }
+  });
+}, 1500);
+
+// Logs:
+// (at 1 second): 1st subscribe: 1
+// (at 2 seconds): 1st subscribe: 2
+// (at 2 seconds): 2nd subscribe: 2
+// (at 3 seconds): 1st subscribe: 3
+// (at 3 seconds): 1st sequence finished
+// (at 3 seconds): 2nd subscribe: 3
+// (at 3 seconds): 2nd sequence finished
+
+
+
+- Multicasting observables take a bit more setup, but they can be useful for certain applications. 
+Later we will look at tools that simplify the process of multicasting, 
+allowing you to take any observable and make it multicasting.
+
+
+Error Handling
+_______________
+
+- Because observables produce values asynchronously, try/catch will not effectively catch errors. 
+-Instead, you handle errors by specifying an error callback on the observer.
+- Producing an error also causes the observable to clean up subscriptions and stop producing values.
+- An observable can either produce values (calling the next callback), or it can complete, 
+calling either the complete or error callback
+
+
+
+myObservable.subscribe({
+  next(num) { console.log('Next num: ' + num)},
+  error(err) { console.log('Received an errror: ' + err)}
+});
+

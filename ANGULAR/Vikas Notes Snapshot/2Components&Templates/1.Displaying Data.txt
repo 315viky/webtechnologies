@@ -1,0 +1,177 @@
+Displaying Data
+_______________
+- You can display data by binding controls in an HTML template to properties of an angular component
+
+Showing component properties with interpolation
+_______________________________________________
+- The easiest way to display a component property is to bind the property name through interpolation.
+- With interpolation, you put the property name in the view template, enclosed in double curly braces:
+  {{myHero}}.
+
+-------------------------------------------------------------------------------------------------
+src/app/app.component.ts
+content_copy
+import { Component } from '@angular/core';
+ 
+@Component({
+  selector: 'app-root',
+  template: `
+    <h1>{{title}}</h1>
+    <h2>My favorite hero is: {{myHero}}</h2>
+    `
+})
+export class AppComponent {
+  title = 'Tour of Heroes';
+  myHero = 'Windstorm';
+}
+
+- you added two properties to the formerly empty component: title and myHero
+- The template displays the two component properties using double curly brace interpolation
+
+template: `
+  <h1>{{title}}</h1>
+  <h2>My favorite hero is: {{myHero}}</h2>
+
+Note : The template is a multi-line string within ECMAScript 2015 backticks (`). The backtick (`)—
+which is not the same character as a single quote (')—allows you to compose a string over several lines,
+which makes the HTML more readable.
+  `
+- Angular automatically pulls the value of the title and myHero properties from the component and inserts
+  those values into the browser
+- Angular updates the display when these properties change
+- More precisely, the redisplay occurs after some kind of asynchronous event related to the view, 
+  such as a keystroke, a timer completion, or a response to an HTTP request.
+
+- Notice that you dont call 'new' to create an instance of the AppComponent class. Angular is creating an
+  instance for you, how ?
+- The CSS selector app-root in the @component decorator specifies an element name <app-root>. The element is
+   as placeholder in the body of your index.html file
+
+<body>
+  <app-root></app-root>
+</body>
+
+- when you bootstrap with the AppComponent class( in main.ts)
+platformBrowserDynamic().bootstrapModule(AppModule);
+- Angular looks for a <app-root> in the index.html, finds it, instantiates an instance of the App component
+ and renders it inside the <app-root> tag
+
+--------------------------------------------------------------------------------------------------
+
+Template Inline or Saperate File
+________________________________
+- you can store your template in one of the two places. you can define it 'inline' uaing the template
+  property or you can define the template in a saperate HTmL file and link to it in the compoent metadata
+  using the @component decorator's template url property
+
+Constructor or variable initialization
+______________________________________
+- constructor can also be used to initialize the properties of the components
+
+export class AppCtorComponent {
+  title: string;
+  myHero: string;
+
+  constructor() {
+    this.title = 'Tour of Heroes';
+    this.myHero = 'Windstorm';
+  }
+}
+
+Showing an array property with *ngFor
+_____________________________________
+
+------------------------------------------------------------------------------------------
+To dispay a list of heroes, beginning by adding an array of hero names to the component and
+redefine myHero to be the first name in the array
+------------------------------------------------------------------
+src/app/app.component.ts( class )
+export class AppComponent {
+   title = 'Tour of Heroes';
+   heroes = ['Windstorm', 'Bombasto', 'Magneta', 'Tornado'];
+   myHero = this.heroes[0];
+}
+------------------------------------------------------------------
+- now use the Angular ngFor directive in the template to display each item in the heroes list
+------------------------------------------------------------------
+src/app/app.component.ts( html )
+
+template : `
+     <h1>{{ title }}</h1>
+     <h2>My Favourite hero is: {{myHero}}</h2>
+     <p>Heroes:</p>
+      <ul>
+       <li *ngFor="let hero of heroes">
+         {{hero}}
+       </li>
+      </ul>    
+-------------------------------------------------------------------------
+- The UI uses the HTML unordered list with <ul> and <li> tags. The *ngFor in the <li> element is the 
+  Angular "repeater" directive. It marks that the <li> element( and its children) as the repeater template.
+<li *ngFor="let hero of heroes">
+  {{ hero }}
+</li>
+
+-Angular duplicates the <li> for each item in the list, setting the hero variable to the item( the hero ) in 
+ the current iteration. Angular uses that variable as the context for the interpolation in the double curly braces
+
+-In this case, ngFor is displaying an array, but ngFor can repeat items for any iterable object.
+
+
+Creating a class for the data
+_____________________________
+
+- The apps code defines the data directly inside the component, which isnt the best practice
+- In real applications bindings are to more specialized objects
+- To convert this binding to use specialized objects, turn the array of hero names into an array of Hero objects.
+
+------------------------------------------------------------------------
+src/app/hero.ts
+export class hero {
+   constructor(
+      public id: number,
+      public name: string) { }
+}
+
+- you have defined a class with a constructor and two properties: id and name
+- The declaration of the constructor parameters takes advantage of a typescript shortcut
+
+public id: number,
+
+That brief syntax does a lot:
+
+Declares a constructor parameter and its type.
+Declares a public property of the same name.
+Initializes that property with the corresponding argument when creating an instance of the class.
+
+Conditional display with NgIf
+_____________________________
+- The angular ngIf directive inserts or removes an element based on a truthy/falsy condition.
+<p *ngIf="heroes.length > 3">There are many heroes!</p>
+- The template expressing *ngIf="heroes.length > 3" looks and behaves much like a TS.
+- WHen the components list of heroes has more than three items - Angular adds the paragraph to the DOM and
+  the messhae appears
+
+Summary
+_______
+- Interpolation with double curly braces to display a component property
+- ngFor to displat an array of items
+- A Typescript class to shape the model data for your components and display properties of that model
+- ngIf to conditionally dispay a chunk of html based on a boolean expression
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,267 @@
+<Context: []>
+
+The RxJS library ( Reactive Extensions for Javascript )
+________________
+
+- Reactive programming is an asynchronous programming paradigm concerned with data streams and the propagation
+  of change
+- RxJS (Reactive Extensions for Javascript) is a library for reactive programming using observables that 
+  makes it easier to compose asynchronous or callback-based code (RxJS Docs)
+
+- RxJS provides an implementation of the Observable type which is needed until the type becomes part of
+  the language and until browsers support it.
+- The Library also provides utility functions for creating and working with observables
+
+The utility functions can be used for
+  - Converting existing code for async operation into observables
+  - Iterating through the values in a stream
+  - Mapping values to different types
+  - Filtering streams
+  - Composing multiple streams
+
+
+Observable creation functions
+_____________________________
+
+- RxJS offers a number of functions that can be used to create new observables.
+- These functions can simplify the process of creating observables from things such as events, timers, promises,
+	  and so on. 
+
+Creating an observable from a promise:
+--------------------------------------
+import { from } from 'rxjs'
+//create an observable out of a promise
+const data = from(fetch('/api/endpoint'));
+//subscribe to begin listening for async result
+data.subscribe({
+    next(response) => { console.log(response); },
+    error(err) => { console.error('Error: '+ err); },
+    complete() => { console.log('Completed');
+   });
+
+
+Creating an Observable from a counter:
+----------------------------------------
+import { interval } from 'rxjs'
+
+// create an observable that will publish a value on an interval
+const secondsCounter = interval(1000);
+
+//subscribe to begin publishing values
+secondsCounter.subscribe( 
+         n => console.log(`Its been ${n} seconds since subscribing!`)  );
+
+
+Creating Observable from an Event:
+----------------------------------
+
+import { fromEvent } from 'rxjs'
+
+const el = document.getElementById('my-element');
+//create an observable that will publish mouse movements
+const mouseMoves = fromEvent( el, 'mousemove' );
+
+//subscribe to start listening for mouse-move events
+
+const subscription = mouseMoves.subscribe(
+         (evt: MouseEvent) => {
+    // log coordinates of mouse movements
+       console.log(`Coords: ${evt.clientX} X ${evt.clientY}`);
+
+    //when the mouse is over the upper left screen of the screen
+      unsubscribe to stop listening for mouse movements
+    
+    if(evt.clientX < 40 && evt.clientY < 40) {
+      subscription.unsubscribe();
+   }
+ });
+
+
+Create an observable that creates an AJAX request
+-------------------------------------------------
+
+import { ajax } from 'rxjs/ajax'
+
+// Create an Observable that will create an AJAX request
+const apiData = ajax('/api/data');
+//subscribe to create the request
+apiData.subscribe( res => console.log( res.status, res.response));
+
+
+Operators
+_________
+
+- Operators are functions that build on the observables foundation to enable sophisticated manipulation
+  of collections.
+- RxJS defines operators such as map(), filter(), concat() and flatmap()
+
+- Operators take configuation options, and they return a function that takes a source observable.
+- When executing this returned function, the operator observes the source observables emitted values,
+  transforms them, and returns a new observable of those transformed values
+
+
+Map Operator
+------------
+
+import { map } from 'rxjs/operators';
+
+const nums = of(1, 2, 3);
+
+const squareValues = map((val: number) => val * val );
+const squaredNums = squareValues(nums);
+
+squaredNums.subscribe(x => console.log(x));
+// Logs
+// 1
+// 4
+// 9
+
+- You can use pipes to link operators together.
+- Pipes let you combine multiple functions into a single function
+- The pipe() function takes as its arguements the functions you want to combime, and returns a new function
+  that, when executed, runs the composed functions in sequence
+
+- A set of operators applied to an observable is a recipe- that is, a set of instructions for producing
+  the values you are interested in.
+- By itself, the recipe doesnt do anything. You need to call subscribe() to produce a result through recipe
+
+
+Standalone pipe function
+------------------------
+
+import { filter, map } from 'rxjs/operators';
+
+const nums = of(1, 2, 3, 4, 5);
+
+//create a function that accepts an Observable
+const squareOddVals = pipe(
+    filter((n: number) => n % 2 != 0),
+    map(n => n * n)
+  );
+
+// Creare an observable that will run the filter and map functions
+const squareOdd = squareOddVals(nums);
+
+//subscribe to run the combined functions
+squareOdd.subscribe(x => console.log(x));
+
+
+The pipe() function is also a method on the RxJs Observable, so you use this shorter form to define the same
+operation
+
+import { filter, map } from 'rxjs/operators';
+
+const squareOdd = of(1, 2, 3, 4, 5)
+       .pipe(
+         filter(n => n % 2 == 0),
+         map(n => n * n )
+       );
+
+//subscribe to get values
+squareOdd.subscribe(x => console.log(x));
+
+
+Common Operators
+________________
+
+- RxJs provides many operators, but only a handful are used frequently.
+Note that, for Angular apps, we prefer combining operators with pipes, rather than chaining. Chaining is used in many RxJS examples.
+
+
+Creation - from, fromEvent, of
+Combination - combineLatest, concat, merge, startWith, withLatestFrom, zip
+Filtering - debounceTime, distinctUntilChanged, filter, take, takeUntil
+Transformation - bufferTime, concatMap, map, mergeMap, scan, switchMap
+Utility - tap
+Multicasting - share
+
+Error Handling
+______________
+
+- In addition to the error() handler that you provide on subscription, RxJS provides the catchError
+  operator that lets you handle known errors in the observable recipe
+- SUppose there is an observabe that makes an API request and maps to the response from the server
+  If the server returns an error or the value doesnt exist, an error is produced. If you catch this error
+  and supply a default value, your stream cotninues to process values rather than erroring out
+
+
+catchError operator
+-------------------
+
+import { ajax } from 'rxjs/ajax';
+import { map, catchError } from 'rxjs/operators';
+
+const apiData = ajax('/api/data').pipe(
+            map(res => {
+              if(!res.response) {
+               throw new Error('Value Expected');
+             }
+              return res.response;
+           }),
+           catchError( err => of([])
+       );
+
+apiData.subscribe({
+       next(x) {console.log('data:', x); },
+       error(err) { console.log('errors already caught.. will not run);}
+     });
+
+
+Retry Failed observable
+-----------------------
+
+- Use retry() operator before the catchError Operator - it resubsribes to the original source observable,
+  which can then rerun the full sequence of actions that resulted in the error
+- If this includes an HTTP request, it will retry that HTTP request .
+import { ajax } from 'rxjs/ajax';
+import { map, retry, catchError } from 'rxjs/operators';
+
+const apiData = ajax('/api/data').pipe(
+  retry(3), // Retry up to 3 times before failing
+  map(res => {
+    if (!res.response) {
+      throw new Error('Value expected!');
+    }
+    return res.response;
+  }),
+  catchError(err => of([]))
+);
+
+apiData.subscribe({
+  next(x) { console.log('data: ', x); },
+  error(err) { console.log('errors already caught... will not run'); }
+});
+
+Note  - Dont retry authentication requests - these should be triggered by users. We dont want to lock out
+user accounts with repeated login requests that user has not initated
+
+
+Naming Conventions for observables
+__________________________________
+
+- Because Angular applications are mostly written in Typescript, you will typically know when a variable
+  is an observable or not.
+- Observables are usually end with '$' though this is not enforced
+stopswatchValue$ = Observable<number>;
+
+
+
+
+import { Component } from '@angular/core';
+import { Observable } from 'rxjs';
+
+@Component({
+  selector: 'app-stopwatch',
+  templateUrl: './stopwatch.component.html'
+})
+export class StopwatchComponent {
+
+  stopwatchValue: number;
+  stopwatchValue$: Observable<number>;
+
+  start() {
+    this.stopwatchValue$.subscribe(num =>
+      this.stopwatchValue = num
+    );
+  }
+}

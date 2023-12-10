@@ -1,0 +1,76 @@
+Practical Observable Usage
+__________________________
+
+<Context: []>
+
+- Here are some examples of domains in which observables are particularly useful
+
+
+Type-ahead suggestions
+_______________________
+
+- Observables can simplify the implementation of type-ahead suggestions.
+- Typically, a type-ahead has to do a series of saperate tasks:
+  - Listen for data from an input
+  - Trim the value( remove whitespace) and make sure its a minimum length
+  - Debounce(so as not to send off API requests for every keystroke, but instead wait for a break in keystrokes)
+  - Cancel ongoing AJAX requests if their result will be invalidated by the updated results
+
+
+- Writing this in full JavaScript can be quite involved. 
+- With observables, you can use a simple series of RxJS operators:
+  
+Typeahead
+---------
+
+import { fromEvent } from 'rxjs''
+import { ajax } from 'rxjs/ajax';
+import { map, filter, debounceTime, distinctUntilChanged, switchMap } from 'rxjs/operator';
+
+
+const searchBox = document.getElementById('search-box');
+
+const typeahead = fromEvent(searchBox, 'input').pipe(
+      map((e: KeyboardEvent) => e.target.value),
+      filter(text => text.length > 2),
+      debounceTime(10) ,
+      distinctUntilChanged(),
+      switchMap(() => ajax('/api/endpoint'))
+     );
+
+typeahead.subscribe(data => {
+      //Handle the data from API
+   });
+
+
+Exponential backoff
+-------------------
+
+- Exponential backoff is a technique in which you retry an API after failure, making the time inbetween
+  retries longer after each consecutive failure,  with a maxium number of retries after which the request
+  is considered to have failed
+- This can be quite complex to implement with promises and other methods of tracking AJAX calls.
+
+
+import { pipe, range, timer, zip } from 'rxjs';
+import { ajax } from 'rxjs/ajax';
+import { retryWhen, map, mergeMap }  fom 'rxjs/operators';
+
+function backoff(maxTries, ms) {
+    return pipe(
+         retryWhen(attempts => zip(range(1, maxTries), attempts)                     
+           .pipe(
+             map([i] => i * i),
+             mergeMap(i => timer(i * ms))
+             )
+           )
+         );
+
+
+ajax('/api/endpoint')
+   .pipe(backoff(3, 250))
+   .subscribe(data => handleData(data));
+
+function handleData(data){
+ // ..
+}

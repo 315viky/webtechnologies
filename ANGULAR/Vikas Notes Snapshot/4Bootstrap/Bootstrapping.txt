@@ -1,0 +1,149 @@
+Bootstrapping
+_____________
+<context:[ declarations, imports, providers, bootstrap ]>
+
+- An NgModule describes how the application parts fit together.
+- Every application has at least one Angular module, the root module that you bootstrap to launch the application,
+- By convention, it is usually called AppModule.
+
+/* JavaScript imports */
+import { BrowserModule } from '@angular/platform-browser';
+import { NgModule } from '@angular/core';
+import { FormsModule } from '@angular/forms'
+import { HttpClientModule } from '@angular/common/http';
+
+import { AppComponent } from './app.component';
+
+/* the AppModule class with the @NgModule decorator */
+
+@NgModule({
+    
+    declarations: [
+        AppComponent
+    ],
+    
+    imports: [
+        BrowserModule,
+        FormsModule,
+        HttpClientModule
+    ],
+
+    providers: [],
+    
+    bootstrap: [AppComponent]
+})
+
+export class AppModule { }
+
+- After the import statements is a class with the @NgModule decorator
+- The @NgModule decorator identifies AppModule as an NgModule class.
+- @NgModule takes a metadata object that tells Angular how to compile and launch the application
+
+  - declarations - this applications lone component 
+  - imports - import BrowserModule to have browser specific services such as DOM rendering, sanitization,
+              and location
+  - providers - the service providers
+  - bootstrap - the root component that Angular creates and inserts into the index.html to host the web page
+
+
+The declarations array
+______________________
+
+- The module's declarations array tells Angular which components belong to that module.
+- As you create more components, you need to add them to declarations
+- Declare every component in exactly one module.
+- Using a component without declaring it, Angular returns an error message
+- Declarations only takes declarables - which includes components, directives and pipes
+- Declared classes are visible within the module but invisible to component in a different module
+- Export the declared classes and import it in the other modules component to get the class
+
+declarations: [
+  YourComponent,
+  YourPipe,
+  YourDirective
+],
+
+
+Using directives with @NgModule
+-------------------------------
+- Use the declarations array for directives.
+- To use a directive, component or pipe in a module, you must do a few things
+
+1. Export it from the file you wrote it.
+2. Import it into the appropriate module.
+3. Declare it in the @NgModule declarations array
+
+src/app/item.directive.ts
+-------------------------
+
+import { Directive } from '@angular/core';
+
+@Directive({
+       selector: '[appItem]'
+      });
+
+export class ItemDirective {
+    //code goes here
+    constructor() { }
+}
+
+- Key point here is that you have to export it so you can import it elsewhere.
+- Next import it into the Ngmodule, with a javascript import statement
+
+
+src/app/app.module.ts
+import { ItemDirective } from './item.directive';
+
+Add in the same file, add it to the @NgModule delcarations array
+
+
+declarations: [
+     AppComponent,
+     ItemDirective
+   ]
+
+
+- Now you could use your ItemDirective in a component in AppModule.
+- Remember, components, directives and pipes belong to one module only.
+- You only need to declare them once in your app because you share them by importing the necessary modules.
+
+
+The imports array
+_________________
+
+imports: [
+        BrowserModule,
+        FormsModule,
+        HttpClientModule
+    ],
+
+- The module's imports array appears exclusively in the @NgModule metadata object.
+- It tells Angular about other NgModules that this particular module needs to function properly.
+- The list of modules are those that export components, directives, or pipes that the component templates
+  in this module references.
+- AppComponent which references components, directives or pipes in BrowserModule, FormsModule or HttpClientModule.
+- A Component template can reference another component, directive or pipe when the reference class is declared
+  in this module or the class was imported from another module
+
+
+The Providers array
+_____________________
+
+- The providers array is where you list the services the app needs.
+- When you list services here, they are available app-wide.
+- Services can be scoped when using feature modules and lazy loading
+
+The bootstrap array
+___________________
+
+- The application launches by bootstrapping the root AppModule, which is also referred to as an entryComponent.
+- Among otherthings, the bootstrapping process creates the component's listed in the bootstrap array and inserts
+  each one into the browser DOM.
+- Each bootstrapped component is the base of its own tree of components.
+- Inserting a bootstrapped component usually triggers a cascade of component creations that fill out that tree.
+
+- While you can put more than one component tree on a host web page, most applications have only one component
+  tree and bootstrap  a single component
+- This one root component is usually called AppComponent and is in the root module's bootstrap array
+
+
