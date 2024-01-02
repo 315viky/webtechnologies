@@ -1,0 +1,36 @@
+Set Up
+- Using CLI or IDE
+
+CLI
+- install nodejs - which at this point i think serves the angular js 
+   Go to nodejs site and install the latest, node-v11.7. It will also install the npm ( node package manager)
+- install angular-cli , Angular CLI is a tool to initialize, develop, scaffold and maintain Angular applications
+  npm install -g angular-cli or @angular/cli
+
+commands with angular-cli
+ng new
+The Angular CLI makes it easy to create an application that already works, right out of the box. 
+It already follows our best practices!
+
+ng generate
+Generate components, routes, services and pipes with a simple command. 
+The CLI will also create simple test shells for all of these.
+
+ng serve
+Easily test your app locally while developing.
+
+Test, Lint, Format
+Make your code really shine. Run your unittests or your end-to-end tests with the breeze of a command. 
+Execute the official Angular linter and run clang format.
+
+
+Angular Tutorial https://angular.io/tutorial
+________________
+
+You used the CLI to create a second HeroesComponent.
+You displayed the HeroesComponent by adding it to the AppComponent shell.
+You applied the UppercasePipe to format the name.
+You used two-way data binding with the ngModel directive.
+You learned about the AppModule.
+You imported the FormsModule in the AppModule so that Angular would recognize and apply the ngModel directive.
+You learned the importance of declaring components in the AppModule and appreciated that the CLI declared it for you.

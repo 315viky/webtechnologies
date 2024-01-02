@@ -1,0 +1,64 @@
+Next steps: tools and techniques
+_________________________________
+
+- Features and tools available to help develop and deliver angular apps.
+- Responsive Programming
+   - Lifecycle hooks
+     - Tap into key moments in the lifetime of a component, from its creation to its destruction, by implementing
+      lifecycle hook interfaces
+   - Observables and event processing
+     - How to use observables with components and services to publish and subscribe to message of any type,
+       such as user-interaction events and asynchronous operation results
+- Client-server interaction
+   - HTTP 
+     - Communicate with a server to get data, save data, and invoke server-side actions with an HTTP client.
+   - Server-side Rendering
+     - Angular Universal generates static application pages on the server through server-side rendering (SSR)
+       This allows you to run your angular app on the server in order to improve performance and show the 
+       first page quickly on mobile and low powered devices and also facilitate web crawlers
+   - Service Workers
+        Use a service worker to reduce dependency on the network significantly improving the user experience
+
+- Domain-specific libraries
+  - Animations
+    - Use Angulars animation library to animate component behaviour without deep knowledge of animation
+      techniques or CSS
+  - Forms
+    - Support complex data entry scenarios with HTML-based validation and dirty checking
+
+- Support for the development cycle
+  - Compilation
+    - ANgular provides Just-In-Time compilation for the development environment and ahead-of-time compilation
+      for the production env
+  - Testing Platform
+    - Run unit tests on your application parts as they interact wtih the angular framework
+  - Internalization
+    - Make your app available in multiple languages with ANguars internalization tools
+  - Security guidelines
+    - Learn about angular built in protection against common web-app vulnerabilities and attachs such as
+      cross site scripting attacks
+
+
+Setup, build and deployment configuarion
+_____________________________________________
+
+- CLI Command Reference
+   - The angular CLI is a command line tool that you use to create projects, generate application and
+     and library code and perform a variety of ongoing development tasks such as testing, bundling and 
+     deployment
+- Workspace and File Structure
+    - Understand the structure of Angular workspace and project folders
+- npm Packages
+    - The Angular Framework, Angular CLI, and components used by angular applications are packaged as npm
+      packages and distributed vua the npm registry. The angular CLI creates a default package.json file, which 
+      specifies a starter set of packages that work well together and jointly support many common application
+      scenarios
+- TypeScript Configuration
+  - Typescript is in primary language for Angular application development
+- Browser Support
+  - Make your apps compatible accross wide range of browsers
+- Building and Serving
+   - Learn to define different build and proxy server configurations for your project, such as development
+     staging and production
+- Deployment
+   - Learn techniques for deploying your angular application to a remote server

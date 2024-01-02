@@ -1,0 +1,250 @@
+<Context: [ Pass Data from Parent to Child Via Data Binding, Intercept input property changes with setter
+           in child componet, Intercept Input property changes with ngOnChanges(), Parent listens to child event
+           child emits the event to which parent binds to, Parent Interacts with child via templare reference
+           variable, Parent gets hold of child instance with @ViewChild()]>
+     To DO: Parent and Child comunication via service
+
+Component Interaction
+_____________________
+- This cookbook contains recipes for common component communication scenarios in which two or more components
+  share information
+
+Pass data from parent to child with input binding
+_________________________________________________
+
+src/app/hero-child.component.ts
+
+import { Component, Input } from'@angular/core';
+
+import { Hero } from './hero';
+
+
+@Component({
+   selector: 'app-hero-child',
+   template: `
+    <h3>{{hero.name}} says:</h3>
+    <p>I, {{hero.name}}, am at your service, {{masterName}}.</p>
+   `
+})
+
+export class HeroChildComponent {
+	@Input() hero: Hero;
+        @Input('master') masterName: string;
+}
+
+
+src/app/app-hero-parent.component.ts
+
+import { Component } from '@angular/core'
+
+import { HEROES } from './hero'
+
+@Component({
+   selector: 'app-hero-parent',
+   template:`
+       <h2>{{master}} controls {{heroes.length}} heroes</h2>
+       <app-hero-child *ngFor="let hero of heroes"
+         [hero]="hero"
+         [master]="master">
+       </app-hero-parent>
+      `
+});
+
+export class HeroParentComponent {
+     heroes = HEROES;
+     master = 'Master';
+}
+
+
+Intercept input property changes with a setter
+______________________________________________
+- Use an input property setter to intercept and act upon a value from the parent
+- The setter of the name input property in the child NameChildComponent trims the whitespace from a name
+   and replaces an empty value with default text
+
+export class NameChildComponent {
+  private _name = '';
+ 
+  @Input()
+  set name(name: string) {
+    this._name = (name && name.trim()) || '<no name set>';
+  }
+ 
+  get name(): string { return this._name; }
+}
+
+Intercept input property changes with ngOnChanges()
+___________________________________________________
+
+- Detect and act upon changes to input property values with ngOnChanges() method of the OnChanges lifecyle
+  hook interface 
+
+< Prefer this approach to the property setter when watching multiple, interacting input properties >
+
+   ngOnChanges(changes: {[propkey: string]: SimpleChange}) {
+      let log: string[] = [];
+      for( let propName in changes ) {
+       let changedProp = changes[propName];
+       let to = JSON.stringify(changedProp.currentValue);
+       if(changedProp.isFirstChange()) {
+         log.push('Initial value of ${propName} set to  ${to}');
+   
+       }
+       else {
+       let from = JSOM.stringify(changedProp.previousValue);
+       log.push('${propName} changed from ${from} to ${to' )
+       }
+     }
+
+     this.changeLog.push(log.join(','));
+    }
+}
+
+
+Parent listens for child event ( child to parent )
+______________________________
+
+- The child component exposes an EventEmitter property with which it emits events when something happens.
+- The Parent binds to that event property and reacts to those events
+
+- The childs eventEmitter property is an output property, typically with an @Output decoration
+
+src/app/voter.component.ts
+
+  import { Component, EventEmitter, Input, Output } from '@angular/core'
+  
+  @Component({
+     selector: 'app-voter',
+     template:
+     `
+     <h4>{{name}}</h4>
+     <button (click)="vote(true)" [disabled]="didVote">Agree</button>
+     <button (click)="vote(false)" [disabled]="didVote">Disagree</button>
+     `
+});
+
+   export class VoterComponent {
+      @Input() name: string;
+      @Output voted = new EventEmitter<boolean>();
+      didVote = false;
+
+      vote(agreed: boolean) {
+      this.voted.Emit(agreed);
+      this.didVote = true;
+     }
+
+
+import { Component }      from '@angular/core';
+
+@Component({
+  selector: 'app-vote-taker',
+  template: `
+    <h2>Should mankind colonize the Universe?</h2>
+    <h3>Agree: {{agreed}}, Disagree: {{disagreed}}</h3>
+    <app-voter *ngFor="let voter of voters"
+      [name]="voter"
+      (voted)="onVoted($event)">
+    </app-voter>
+  `
+})
+export class VoteTakerComponent {
+  agreed = 0;
+  disagreed = 0;
+  voters = ['Mr. IQ', 'Ms. Universe', 'Bombasto'];
+
+  onVoted(agreed: boolean) {
+    agreed ? this.agreed++ : this.disagreed++;
+  }
+}
+
+Parent interacts with child via local variable ( template reference variable )
+_______________________________________________
+
+- A parent component cannot use data binding to read child properties or invoke child methods.
+- You can do both by creating a template reference variable for the child component and then reference that
+  variable within the parent template
+
+@Component({
+  selector: 'app-countdown-parent-lv',
+  template: `
+  <h3>Countdown to Liftoff (via local variable)</h3>
+  <button (click)="timer.start()">Start</button>
+  <button (click)="timer.stop()">Stop</button>
+  <div class="seconds">{{timer.seconds}}</div>
+  <app-countdown-timer #timer></app-countdown-timer>  //#timer is templare ref variable refering to child comp
+  `,
+  styleUrls: ['../assets/demo.css']
+})
+
+
+Parent calls an @ViewChild()
+____________________________
+
+- The local variable approach is simple and easy. 
+- But it is limited because the parent-child wiring must be done entirely within the parent template
+- The parent component itself has no access to the child
+
+- You cant use the local variable technique if an instance of the parent component class must read or write
+  child component values or must call child component methods
+
+- When the parent component class requires that kind of access, inject the child component into the parent
+  as a ViewChild
+
+import { AfterViewInit, ViewChild } from '@angular/core';  //import view child and afterInit to intercept the child
+
+<h3>Countdown to Liftoff (via ViewChild)</h3>
+  <button (click)="start()">Start</button>
+  <button (click)="stop()">Stop</button>
+  <div class="seconds">{{ seconds() }}</div>
+  <app-countdown-timer></app-countdown-timer>  // no template ref variable
+  `,
+
+export class CountdownViewChildParentComponent implements AfterViewInit {
+    @ViewChild(CountdownTimerComponent)  //view child component decorator
+    private timerComponent: CountdownTimerComponent // inject child to parent and make accessable as 
+                                                        this,timerComponent
+
+
+-First, you have to import references to the ViewChild decorator and the AfterViewInit lifecycle hook.
+-Next, inject the child CountdownTimerComponent into the private timerComponent property via
+ the @ViewChild property decoration.
+
+
+-The #timer local variable is gone from the component metadata.
+- Instead, bind the buttons to the parent component's own start and stop methods
+ and present the ticking seconds in an interpolation around the parent component's seconds method.
+
+ seconds() { return 0; }
+ 
+  ngAfterViewInit() {
+    // Redefine `seconds()` to get from the `CountdownTimerComponent.seconds` ...
+    // but wait a tick first to avoid one-time devMode
+    // unidirectional-data-flow-violation error
+    setTimeout(() => this.seconds = () => this.timerComponent.seconds, 0); //redefine seconds to point to child
+  }
+
+
+These methods access the injected timer component directly.
+
+-The ngAfterViewInit() lifecycle hook is an important wrinkle. 
+-The timer component isn't available until after Angular displays the parent view.
+ So it displays 0 seconds initially.
+
+-Then Angular calls the ngAfterViewInit lifecycle hook at which time it is too late to update the parent
+view's display of the countdown seconds. Angular's unidirectional data flow rule prevents 
+updating the parent view's in the same cycle. The app has to wait one turn before it can display the seconds.
+
+-Use setTimeout() to wait one tick and then revise the seconds() method so that it takes
+ future values from the timer component.
+
+
+Parent and Children Communicate Via Service ( Comeback to this after Subscriber and Observer concepts )
+_______________________________________________________________________________________________________
+A. Make Use of Observables in Service which is avialable to both Parent and Child Component
+   Obeservables message passing mechanism by publishing and subscribe
+
+   Parent Component can publish a message through Observable and Child component can subscribe to that Observable
+   Similarly Child COmponent can also publish a messaage through observable and Parent can subscribe to that message
+
+
+

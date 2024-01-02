@@ -1,0 +1,66 @@
+@NgModule({
+	imports: [BrowserModule],
+        declarations: [ AppComponent ],
+	exports: [ AppCmponent ],
+	providers: [ Logger ],
+        bootstrap: [ AppComponent ]
+});
+
+@component({
+	selector: 'app-component',
+	templateUrl: './app.component.html',
+        styleUrls: './app.component.scss'
+}); 
+
+@Injectable({
+	providedIn: 'root'
+});
+
+
+<ul>
+ <li *ngFor="let hero of Heroes">{{hero.name}}</li>
+</ul>
+
+<p *ngIf="heroes.lengt > 3>There are many heroes </p>
+
+Binding Examples:
+<img [src]="imageUrl">
+<app-hero-detail [hero]="currentHero"></app-hero-detail>
+<div [ngClass]="{'special': isSpecialClass}"></div>
+<button (click)="buttonClicked()">clickMe</button>
+<app-hero-detail (deleteRequest)="deleteHero()"></app-hero-detail>
+<div (myClick)="clicked=$event clickable>click Me</div>
+<input [(ngModel)]="name">
+<button [attr.aria-label]="help">help</button>
+<div [class.special]="isSpecial">Special</div>
+<div [style.color]="isSpecial ? 'red' : 'green'">
+deleteHero = new EventEmitter<boolean>();
+this.deleteHero.emit(true);
+<div (deleteHero)="handleDelete()">
+
+<input [(value)]="inputValue">
+<input [value]="inputValue" (input)="inputValue=$event">
+
+<app-sizer [(size)]="fontSizePx"></appsizer>
+
+@input() size: number;
+@output) sizeChange<number> = new EventEmitter();
+this.sizeChange.emit(this.size);
+
+<app-size [size]="fontSizePx" (sizeChange)="fontSizePxx=$event"></app-size>
+
+<app-hero-detail *ngIf="isActive"></app-hero-detail>
+<ng-template [ngIf]="isActive">
+    <app-hero-detail></app-hero-detail>		
+</ng-template>
+
+<div *ngFor="let hero of heroes">{{hero}}</div>
+<ng-template let-hero [ngForOf]=""heroes>
+  <div>{{hero}}</div>
+</ng-template>
+
+
+<div [NgSwitch]="currentHero.emotion">
+  <app-happy-hero *ngSwitchCase="happy"> </app-happy-hero>
+  <app-sad-hero *ngSwitchCase="sad"> </app-sad-hero>
+</div>

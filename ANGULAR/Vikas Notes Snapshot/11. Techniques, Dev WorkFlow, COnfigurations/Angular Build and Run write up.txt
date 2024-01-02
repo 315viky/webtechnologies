@@ -1,0 +1,116 @@
+- Angular and probably more accurately angular-cli have mergerd together
+  a number of trending tools in Javascript that are involved in the build process
+  
+- The term compile was often used in angular-js to refer to the process of taking the
+  template's pseudo-html and turning into DOM elements. Thats part of what the compiler
+  does but one of the smaller parts
+
+- First of all, there is no need to use TypeScript, angular-cli or webpack to run Angular
+
+so what is Angular - what does it do ?
+----------------------------------------
+- At its core, the service that angular provides, is a dependency injection mechanism which
+  works accross Javascript, HTML and CSS.
+- You write all bits and pieces individually and in each little piece you follow Angular's rules
+  for referencing the other pieces.
+- Angular then weaves that all together somehow
+
+To be(slightly) more specific:
+ - Templates allow HTML to be wired into the Javascript component. This allows user input on
+   the DOM itself(eg. clicking a button) to feed into the Javascript component and also allows
+   variables in the Javascript component to control the structure and values in DOM
+ - Javascript classes( including Javascript components ) need to be able to access instances of
+   other javascript classes they depend on( eq. classic dependency injection ).
+   A BookListComponent needs an instance of a BookListService which might need an instance of a 
+   BookListPolicy. Each of these classes has different lifetimes( eq services are usually
+   singletons, components are usually not singletons) and Angular has to manage all those
+   lifetimes, the creation of the components and wiring of dependencies
+- CSS rules needed to be loaded in such a way that they only apply to a subset of the DOM
+  (a Components style is local to that component )
+
+
+One possibly important thing to note is that Angular is not responsible for how javascript
+files reference other javascript files ( eg the import keyword ). 
+This is taken care of by Webpack
+
+What does the compiler do?
+---------------------------
+Now that you know what Angular does we can talk about what the compiler does.
+I will avoid getting too technical mainly because Im ignorant.
+
+- However in a dependency injection system you typically have to express your dependencies
+  with some kind of metadata (eg, how does a class say I can be injected, My lifetime is blah,
+  or You can think of me as a Component type of instance).
+- In Java, Spring originally did this with XML files. Java later adopted annotations and they
+  have become the preferred way to express metadata. C# uses attributes to express metadata
+
+- Javascript does not have a great mechanism for exposing this metadata builtin.
+- Angular-Js made an attempt and it wasnt bad but there were a lot of rules that couldnt be
+  easily checked and were a little confusing.
+- With Angular there are two supported ways of specifying the metadata. 
+  You can write pure
+  Javascript and specify the metadata manually, somewhat similar to angular-js and just
+  keep following the rules and writing extra boiler-platey code.
+  Alternatively you can switch to Typescript which, as it just so happens, has decorators
+  (the @ symbols) which are used to express metadata.
+
+- So here is where can finally get to the compiler.
+- The Compilers job is to take that metadata and create a system of working pieces that is
+  your application.
+- You focus on all the pieces and all of the metadata and the compiler builds one big
+  interconnected application
+
+How does the compiler do it?
+----------------------------
+
+There are two ways the compiler can work, runtime and ahead-of-time.
+From here on, I will assume you are using the TypeScript
+
+- Runtime: WHen the typescript compiler runs it takes all the decorator information and shoves
+           it into the Javascript code attached to the decorated classes, methods and fields.
+           In your index.html, you reference your main.js which calls the bootstrap method.
+           That method is passed to your top level module.
+
+           The bootstrap method fires up the runtime compiler and gives it a reference to that
+           top level module. The runtime compiler then starts to crawl that module, all services
+           components etc referenced by that module and all associated metadata and builds your
+           application
+
+- AOT : Rather then do all the work at runtime Angular has provided a mechanism for doing most
+        of the work at build time. This is almost always done using a webpack plugin. It runs
+        after the typescript compilation has run, so it sees essentially the same input as
+        the run time compiler but then saves it back out into the Javascript
+
+The advantage here is not just that you can save the CPU time required for the compilation
+itself, but it also allows you to reduce the size of your application
+
+Specific Answers
+_______________
+
+Angular CLI first calls angular built in compiler written in Typescript => then calls the
+Typescript Transpiler => then calls the webpack to bundle and store in the dist/directory ?
+
+
+No, Angular CLI calls Webpack( Angular CLI's real service is configuring webpack. WHen you
+    run ng build, it isnt much more then a proxy to starting Webpack).
+
+1. WebPack first calls the Typescript compiler, 
+2. Then the angular compiler ( assuming AOT )
+All while bundling the code at the same time
+
+Doesnt Angular does more than dependency injection ?
+- Sure, it does routing, view building, change detection and all kinds of other things
+- The compiler does actually generate Javascript for view building and change detection.
+- It is not just dependency injection, but dependency injection is at the core and enough
+  to drive the rest of the answer
+
+Should we call it a compiler ?
+
+- It probably does a lot of parsing and lexing and definitely generates a lot of code as a result
+  so you could call it a compiler for that reason.
+
+- On the other hand, it isnt really translating your code into merely a different representation.
+  Instead it is taking a bunch of different pieces of code and weaving them into consumable
+  pieces of a larger system.
+  The bootstrap process then ( after compiling if necessary ) takes those pieces and plugs
+  them into the Angualar Core
