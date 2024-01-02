@@ -1,0 +1,7 @@
+New Features/Concepts in Angular
+
+StandAlone Components
+renderAfterNext and renderAfter Life cycle hooks
+host decorator
+NgComponentOutlet
+ViewContainerRef.createComponent

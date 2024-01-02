@@ -127,6 +127,9 @@ A. JIT compiler - AOT compiler -
 
 
 
+
+
+
 2. Components and Templates
 
 Displaying Data
@@ -230,7 +233,7 @@ A.  - Depending on the binding type, target can be (Element|Component|Directive)
                          Compnonent    <app-hero-detail (deleteRequest)="deleteHero()"></app-hero-detail>
                          Directive     <div (myClick)="clicked=$event clickable>click me</div>
 
-    Two-way              Event and     <input [(ngModel])="name">
+    Two-way              Event and     <input [(ngModel)]="name">
                          Property 
 
     Attribute           Attribute(exception)  <button [attr.aria-lable]="help">help</button>
@@ -655,6 +658,187 @@ A.
   }
 
 
+StandAlone Components (Angular 14)
+---------------------
+
+@component({
+	standalone: true,
+	selector: 'profile-photo',
+});
+export class ProfilePhoto {};
+
+@component({
+	standalone: true,
+        imports: [ProfilePhoto]
+        template: `<profile-photo/>
+});
+
+
+Component Selectors
+-------------------
+Type Selector <profile-photo/>
+Attribute Selector - selects a component based on the attribute present in the HTML. Can create a custom component
+		     for standard HTML elements like <button>
+@component({
+	selector: 'button[type="reset"]'
+});
+export class ResetButton {}
+
+Class Selector - creates a component based onthe class name
+@component({
+	selector: '.menu-button'
+});
+export class MenuButton{}
+
+
+Style Scoping
+_____________
+@component({
+	...,
+	encapsulation: ViewEncapsulation.None/ ViewEncapsulation.emulated/ ViewEncapsulation.ShadowDom
+});
+
+emulated: style applies to only elements defined in the component
+          component can be affected by global styling
+          :ng-deep turns the style from component level to global
+
+shadowDom: creates a shadomDom for the components root element ( this has side effects ) and renders the component in shadow tree
+           Component styling will not affect outside component and global styling will not affect component
+
+None: No encapsulation for the component styling
+
+
+Accepting Data with Input Properties
+____________________________________
+Required Inputs
+---------------
+@component({..});
+export class CustomSlider {
+  @input(required) value = 0;
+}
+All the required inputs must be specified for the component
+
+Input Transforms
+----------------
+Can specify transform function to change the value of the input set by Angular
+@component({
+	selector: 'custom-slider;,
+	....
+});
+export class CustomSlider {
+	@input({transform: trimString}) label = '';
+
+        function trimString(value: string | undefined) {
+            return value?.trim() ?? '';
+         }
+}
+
+TypeChecking
+-------------
+When you specify an input transform, the type of the transform function's parameter determines the types of values
+ that can be set to the input in a template.
+@component({..});
+export class CustomSlider {
+	@input({transform: transformFunc} inputVal: string = '';
+        function transformFunc(inputVal: number) {
+		
+        }
+}
+
+Built-in transformations
+-----------------------
+import {Component, Input, booleanAttribute, numberAttribute} from '@angular/core';
+@Component({...})
+export class CustomSlider {
+  @Input({transform: booleanAttribute}) disabled = false;
+  @Input({transform: numberAttribute}) number = 0;
+}
+
+Input aliases
+-------------
+@Component({...})
+export class CustomSlider {
+  @Input({alias: 'sliderValue'}) value = 0;
+}
+
+Specify inputs in the @Component decorator
+
+------------------------------------------
+// `CustomSlider` inherits the `disabled` property from `BaseSlider`.
+@Component({
+  ...,
+  inputs: ['disabled'],
+})
+export class CustomSlider extends BaseSlider { }
+
+
+Content projection with ng-content
+----------------------------------
+// Component source
+@Component({
+  selector: 'custom-card',
+  template: `
+    <div class="card-shadow">
+      <ng-content />
+    </div>
+  `,
+})
+export class CustomCard {/* ... */}
+
+<!-- Using the component -->
+<custom-card>
+  <p>This is the projected content</p>
+</custom-card>
+
+
+Multiple content placeholders
+<!-- Component template -->
+<div class="card-shadow">
+  <ng-content select="card-title"></ng-content>
+  <div class="card-divider"></div>
+  <ng-content select="card-body"></ng-content>
+</div>
+
+<!-- Using the component -->
+<custom-card>
+  <card-title>Hello</card-title>
+  <card-body>Welcome to the example</card-body>
+</custom-card>
+
+Aliasing content for projection
+
+<!-- Component template -->
+<div class="card-shadow">
+  <ng-content select="card-title"></ng-content>
+  <div class="card-divider"></div>
+  <ng-content></ng-content>
+</div>
+
+<custom-card>
+    <h3 ngProjectAs="card-title">Hello<h3>
+<p>Welcome to the example</p>
+</custom-card>
+
+
+
+Binding to the Host Element
+----------------------------
+@component({
+  host: {
+    'roler': 'slider',
+    '[attr-aria-valuenow]': 'value',
+    '[tab-index]': 'disabled ? 0 : 1',
+    '(keydown)': 'updateValue($event)'
+
+  }
+})
+export class CustomSlider {
+  value: number = 0;
+  disabled: boolean = false;
+  updateValue(event: KeyboardEvent) { /* ... */ }
+  /* ... */
+}
+
 
 
 Lifecycle Hooks
@@ -679,6 +863,7 @@ A. Implement Life Cycle Hook interface of Angular Library to tap in to COmponent
 
 
 
+
 - Life Cycle sequence
 A. OnChanges, OnInit, DoCheck, AfterContentInit, AfterContentChecked, AfterViewInit, AfterViewChecked, OnDestroy
 
@@ -691,6 +876,16 @@ A. Called only once, after OnCHanges
 - OnDestroy
 A. - Cleanup logic , before angular destroys the Component/Directive
      Unsusbscribe from Observables and Dom Events, non garbage collected resources, Stop interval timers, unregister callbacks
+@Component({
+  /* ... */
+})
+export class UserProfile {
+  constructor(private destroyRef: DestroyRef) {
+    destroyRef.onDestroy(() => {
+      console.log('UserProfile destruction');
+    });
+  }
+}
 
 - OnChanges
 A. Called whenever Angular detects changes to input properties of the component 
@@ -838,6 +1033,27 @@ A.
 
 
 
+afterRender & afterNextRender
+=============================
+Angular lets us register callbacks after rendering of all the components is completed
+This is where DOM manipulation needs to be done.
+These callbacks are only called on Browser. Not in server side rendering
+
+afterNextRender: Executed Only once during next changDetectionCycle after rendering
+afterRender: Executed after ever change detection after rendering
+
+@Component({...})
+export class ProfilePhoto {
+  constructor(elementRef: ElementRef) {
+    afterRender(() => {
+      // Focus the first input element in this component.
+      elementRef.nativeElement.querySelector('input')?.focus();
+    });
+  }
+}
+
+
+
 
 Component Interaction
 _____________________
@@ -946,6 +1162,56 @@ A.  Make Use of Observables in Service which is avialable to both Parent and Chi
    Similarly Child COmponent can also publish a messaage through observable and Parent can subscribe to that message
 
 
+Inheritance
+===========
+@Component({
+  selector: 'base-listbox',
+  template: `
+    ...
+  `,
+  host: {
+    '(keydown)': 'handleKey($event)',
+  },
+})
+export class ListboxBase {
+  @Input() value: string;
+  handleKey(event: KeyboardEvent) {
+    /* ... */
+  }
+}
+@Component({
+  selector: 'custom-listbox',
+  template: `
+    ...
+  `,
+  host: {
+    '(click)': 'focusActiveOption()',
+  },
+})
+export class CustomListbox extends ListboxBase {
+  @Input() disabled = false;
+  focusActiveOption() {
+    /* ... */
+  }
+}
+
+overriding Life Cycle methods
+-----------------------------
+@Component({ ... })
+export class ListboxBase {
+  protected isInitialized = false;
+  ngOnInit() {
+    this.isInitialized = true;
+  }
+}
+@Component({ ... })
+export class CustomListbox extends ListboxBase {
+  override ngOnInit() {
+    super.ngOnInit();
+    /* ... */
+  }
+}
+
 
 
 Dynamic Components
@@ -984,6 +1250,7 @@ A. ad-banner is a component that hosts the new components
    <ng-template ad-host></ng-template> 
    </div>
 
+(Deprecated)
 - Resolving Components
 A. now ad-banner should dynamically get components and place them with ng-template
    Use ComponentFactoryResolver to get the component factory of a component
@@ -1037,6 +1304,8 @@ A. now ad-banner should dynamically get components and place them with ng-templa
   }
 
 
+
+
 - Selector References
 A. Angular generally creates ComponentFactory for any component referenced in templates
    Since dynamically loaded components are not referenced in template, add them to entry components
@@ -1051,6 +1320,8 @@ __________________________
 - Mapping
 - Browser Support for custom elements
 - Typing for custom elements
+
+
 
 Attribute Directives
 ________________________
@@ -1326,6 +1597,20 @@ import { Directive, TemplateRef, ViewContainerRef } from '@angular/core'
   (B) Although the condition is true,
   this paragraph is displayed because appUnless is set to false.
 </p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 3. Observables and RxJs
@@ -1786,6 +2071,11 @@ ActivatedRoute service provided by angular router provides observables to get in
   }
    
 
+
+
+
+
+
 - Reactive Forms
   Not understood
 
@@ -1987,6 +2277,14 @@ map          obs.map((v) => -v)                                 arr.map(v => -v 
 
 
 reduce      obs.scan((s,v) => s+v, 0)                           arr.reduce((s,v)=>s+v, 0 );                   
+
+
+
+
+
+
+
+
 
 
 4. Bootstrapping
