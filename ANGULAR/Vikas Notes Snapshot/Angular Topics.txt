@@ -1305,6 +1305,325 @@ A. now ad-banner should dynamically get components and place them with ng-templa
 
 
 
+Programmatically rendering components
+=====================================
+
+ngTemplateOutlet
+----------------
+
+@component({ ...
+})
+export class AdminBio {};
+
+@component({...});
+export class StandardBio {};
+
+@component({
+  Selector: 'dialog-component'
+  template: `
+  <p>profile for user {{user.name}}</p>
+  <ng-container *ngTemplateOutlet="getbioComponent()">
+  `
+});
+export class DialogComponent {
+  @input user: User;
+  constructor(){}
+
+  getbioComponent() {
+    return this.user.isAdmin ? AdminBio : StandardBio; 
+  }
+}
+
+
+viewContainerRef
+===============
+
+@Component({
+  selector: 'leaf-content',
+  template: `
+    This is the leaf content
+  `,
+})
+export class LeafContent {}
+@Component({
+  selector: 'outer-container',
+  template: `
+    <p>This is the start of the outer container</p>
+    <inner-item />
+    <p>This is the end of the outer container</p>
+  `,
+})
+export class OuterContainer {}
+@Component({
+  selector: 'inner-item',
+  template: `
+    <button (click)="loadContent()">Load content</button>
+  `,
+})
+export class InnerItem {
+  constructor(private viewContainer: ViewContainerRef) {}
+  loadContent() {
+    this.viewContainer.createComponent(LeafContent);
+  }
+}
+
+
+Advanced Configuration
+======================
+
+import {Component, CUSTOM_ELEMENTS_SCHEMA} from '@angular/core';
+@Component({
+  ...,
+  schemas: [CUSTOM_ELEMENTS_SCHEMA],
+  template: '<some-unknown-component></some-unknown-component>'
+})
+export class ComponentWithCustomElements { }
+
+
+
+
+
+
+Built-in control flow
+=====================
+
+@if block conditionals
+----------------------
+@if (a > b) {
+  {{a}} is greater than {{b}}
+} @else if (b > a) {
+  {{a}} is less than {{b}}
+} @else {
+  {{a}} is equal to {{b}}
+}
+
+
+example:
+<h1>Let's Lern the new control flows</h1>
+<button (click)="toggleFruit()">Toggle Apple</button>
+@if (isApple) {
+  <p>This is an apple</p>
+} @else {
+  <p>This is not an apple</p>
+}
+
+
+
+@for block - repeaters
+----------------------
+
+@for (item of items; track item.id; let idx = $index, e = $even) {
+  Item #{{ idx }}: {{ item.name }}
+}
+
+<h1>Let's Lern the new control flows</h1>
+@for (fruit of fruits; track $index) {
+  <ul>
+    <li>{{fruit}}</li>
+  </ul>
+} @empty {
+  Empty list of fruits
+}
+
+
+empty block
+-----------
+@for (item of items; track item.name) {
+  <li> {{ item.name }} </li>
+} @empty {
+  <li> There are no items. </li>
+}
+
+
+@switch block - selection
+-------------------------
+@switch (condition) {
+  @case (caseA) {
+    Case A.
+  }
+  @case (caseB) {
+    Case B.
+  }
+  @default {
+    Default case.
+  }
+}
+
+@switch (fruit) {
+  @case ('Apple') { <p>You selected an Apple.</p> }
+  @case ('Orange') { <p>You selected an Orange.</p> }
+  @case ('Banana') { <p>You selected a Banana.</p> }
+  @default { <p>Unknown Fruit.</p> }
+}
+
+
+Deferrable views
+================
+@defer blocks
+-------------
+similar to lazy loading
+reduce initial bundle size untill required
+improves core Web Vitals result, enhances Largest Content Full Paint, Time To First Byte 
+
+standAlone functions cannot be deferred
+They must not be directly referenced in the same file outside the @defer block
+
+
+Blocks
+------
+
+@defer
+- section that is lazily loaded
+- triggered when browser becomes idle by default or whem some 'trigger' or 'when' condition is met
+
+@placeholder
+-- show some content before 'defer' block is triggered
+-- place holder content is replaced with deferred block content once it is loaded
+-- accepts minimum time placeholder content is displayed
+@defer {
+  <large-component />
+} @placeholder (minimum 500ms) {
+  <p>Placeholder content</p>
+}
+
+
+@loading
+--------
+The @loading block is an optional block that allows you to declare content that will be shown during the loading of any deferred dependencies. For example, you could show a loading spinner. 
+   Similar to @placeholder, the dependencies of the @loading block are eagerly loaded.
+   @defer {
+  <large-component />
+} @loading (after 100ms; minimum 1s) {
+  <img alt="loading..." src="loading.gif" />
+}
+
+
+@error
+-----
+The @error block allows you to declare content that will be shown if deferred loading fails. Similar to @placeholder and @loading, 
+the dependencies of the @error block are eagerly loaded. The @error block is optional.
+
+@defer {
+  <calendar-cmp />
+} @error {
+  <p>Failed to load the calendar</p>
+}
+
+
+
+
+Triggers
+========
+@defer (on viewport; on timer(5s)) {
+  <calendar-cmp />
+} @placeholder {
+  <img src="placeholder.png" />
+}
+
+
+@defer (when cond) {
+  <calendar-cmp />
+}
+
+@defer (on viewport; when cond) {
+  <calendar-cmp />
+} @placeholder {
+  <img src="placeholder.png" />
+}
+
+on idle
+-------
+idle will trigger the deferred loading once the browser has reached an idle state (detected using the requestIdleCallback API under the hood). 
+This is the default behavior with a defer block
+
+on viewport
+-----------
+@defer (on viewport) {
+  <calendar-cmp />
+} @placeholder {
+  <div>Calendar placeholder</div>
+}
+
+<div #greeting>Hello!</div>
+@defer (on viewport(greeting)) {
+  <greetings-cmp />
+}
+
+on interaction
+--------------
+@defer (on interaction) {
+  <calendar-cmp />
+} @placeholder {
+  <div>Calendar placeholder</div>
+}
+
+<button type="button" #greeting>Hello!</button>
+@defer (on interaction(greeting)) {
+  <calendar-cmp />
+} @placeholder {
+  <div>Calendar placeholder</div>
+}
+
+on hover
+--------
+@defer (on hover) {
+  <calendar-cmp />
+} @placeholder {
+  <div>Calendar placeholder</div>
+}
+
+on immediate
+------------
+@defer (on immediate) {
+  <calendar-cmp />
+} @placeholder {
+  <div>Calendar placeholder</div>
+}
+
+
+on timer
+--------
+@defer (on timer(500ms)) {
+  <calendar-cmp />
+}
+
+
+Prefetching
+-----------
+prefetch deferred view dependencies when the browser is idle
+@defer (on interaction; prefetch on idle) {
+  <calendar-cmp />
+} @placeholder {
+  <img src="placeholder.png" />
+}
+
+
+
+SVG as template
+----------------
+import { Component } from '@angular/core';
+@Component({
+  standalone: true,
+  selector: 'app-svg',
+  templateUrl: './svg.component.svg',
+  styleUrls: ['./svg.component.css']
+})
+export class SvgComponent {
+  fillColor = 'rgb(255, 0, 0)';
+  changeColor() {
+    const r = Math.floor(Math.random() * 256);
+    const g = Math.floor(Math.random() * 256);
+    const b = Math.floor(Math.random() * 256);
+    this.fillColor = `rgb(${r}, ${g}, ${b})`;
+  }
+}
+
+
+
+
+
+
+
 
 - Selector References
 A. Angular generally creates ComponentFactory for any component referenced in templates
@@ -1323,6 +1642,8 @@ __________________________
 
 
 
+
+
 Attribute Directives
 ________________________
 An attribute directive changes the appearance or behaviour of a DOM element
@@ -1333,6 +1654,10 @@ A. Components - Directives with a template
    Structural Directive - Change DOM layout by adding or removing DOM elements
  
    Attribute directives are used as attribute of Elements
+
+
+-- Built In Attribute Directives
+   [ngClass], [ngStyle], [(ngModel)]
 
 - Build a simple Attribute Directive
 A. At minimal, it involves a controller class, that controls the behaviour of the Directive and a selector to  
@@ -1351,7 +1676,6 @@ A. At minimal, it involves a controller class, that controls the behaviour of th
    }
 
    - use ElementRef to get hold of the DOM host element
-
 
 - Apply the attribute Directive
 A. <p appHighlight>Highlight Me!</p> 
@@ -1395,6 +1719,12 @@ A.
 - Summary
 A. Define Directive - Apply Directive - Respond to events - bind values to Directive
 
+
+Deactivating Angular processing with NgNonBindable
+--------------------------------------------------
+
+<p>Use ngNonBindable to stop evaluation.</p>
+<p ngNonBindable>This should not evaluate: {{ 1 + 1 }}</p>
 
 
 Structural Directives
@@ -1600,9 +1930,78 @@ import { Directive, TemplateRef, ViewContainerRef } from '@angular/core'
 
 
 
+Directive Composition API
+=========================
+
+Adding directives to a component
+--------------------------------
+
+@Component({
+  standalone: true,
+  selector: 'admin-menu',
+  template: 'admin-menu.html',
+  hostDirectives: [{
+    directive: MenuBehavior,
+    inputs: ['menuId'],
+    outputs: ['menuClosed'],
+  }],
+})
+export class AdminMenu { }
+
+
+<admin-menu menuId="top-menu" (menuClosed)="logMenuClosed()">
+
+The order of execution here is:
+
+MenuBehavior instantiated
+AdminMenu instantiated
+MenuBehavior receives inputs (ngOnInit)
+AdminMenu receives inputs (ngOnInit)
+MenuBehavior applies host bindings
+AdminMenu applies host bindings
+
+
+Adding directives to another directive
+--------------------------------------
+@Directive({...})
+export class Menu { }
+@Directive({...})
+export class Tooltip { }
+// MenuWithTooltip can compose behaviors from multiple other directives
+@Directive({
+  standalone: true,
+  hostDirectives: [Tooltip, Menu],
+})
+export class MenuWithTooltip { }
+// CustomWidget can apply the already-composed behaviors from MenuWithTooltip
+@Directive({
+  standalone: true,
+  hostDirectives: [MenuWithTooltip],
+})
+export class SpecializedMenuWithTooltip { }
+
+In the example above, the order of execution is:
+
+Tooltip instantiated
+CustomTooltip instantiated
+EvenMoreCustomTooltip instantiated
+Tooltip receives inputs (ngOnInit)
+CustomTooltip receives inputs (ngOnInit)
+EvenMoreCustomTooltip receives inputs (ngOnInit)
+Tooltip applies host bindings
+CustomTooltip applies host bindings
+EvenMoreCustomTooltip applies host bindings
 
 
 
+
+
+
+
+
+
+Dependency Injection
+===================
 
 
 

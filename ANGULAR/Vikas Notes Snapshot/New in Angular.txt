@@ -5,3 +5,23 @@ renderAfterNext and renderAfter Life cycle hooks
 host decorator
 NgComponentOutlet
 ViewContainerRef.createComponent
+Built In Control flow
+    @if() {}
+    @else if() {}
+    @else {}
+    @for (item of items, track itemm.id) {}
+    @empty {}
+    @switch (condition) {
+        @case (caseA) {
+            Case A
+        }
+        @case (caseB) {
+            Case B
+        }
+        @default {
+
+        }
+    }
+Deferrable Views 
+SVG as template
+hostDirectives
