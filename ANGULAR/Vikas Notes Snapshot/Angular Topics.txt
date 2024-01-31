@@ -2002,14 +2002,91 @@ EvenMoreCustomTooltip applies host bindings
 
 Dependency Injection
 ===================
+Levels of injecting services
+----------------------------
+Root/Application Level
+@injectable({
+  providedIn: root;
+}
+)
+
+Component Level
+@component({
+  providers: []
+})
+
+Application Level
+export const appConfig: ApplicationConfig {
+  providers: [
+    {provide: HeroService}
+  ]
+};
+
+bootstrapApplication(AppComponent, appConfig);
+
+
+ injecting consuming
+---------------------------
+constructor(service: ServiceName)
+inject(serviceName);
+
+
+Defining Dependency Providers
+-----------------------------
+useClass, useExisting, useValue, useFactory
+
+useCLass: helps with testing
+providers:[{provide: ServiceName, useClass: serviceClassName}
+providers: [serviceName] // if both are same
+
+
+useExisting - multiple ways of providing the same token
+
+useFactory - run time provide the dependencies/values
+export const heroServiceProvider = {
+  provide: HeroService,
+  useFactory: heroServiceFactory,
+  deps: [Logger, UserService]
+};
+
+useValue: Directly provide value
 
 
 
+Injection Context
+-----------------
+
+- class constructor
+- useFactory
 
 
+Hierarchial Injectors
+=====================
+Achieve desired visibility of injectables in the applicaton ( same concept of inheritence, private protected public)
+
+Injector hierarchies
+--------------------
+Environment Injectors - @Injectable ( providedIn: root or platform), providers Array in Application Config
+Element Injectors - providers in @Directive or @Component
 
 
+Environment Injector
+--------------------
+@Injectable providedIn - helps in treeshaking
+providers in ApplicationConfig
 
+Module Injector : configured using Module Providers Array and Module Imports
+
+Platform Injector:  Environment Injector and Null Injector above root
+
+                       Null Injector
+                          
+            Envirornment Injector (configured by Angular at platform level by Platform Module)
+
+                       root Injector
+
+Element Injector
+----------------
 
 
 3. Observables and RxJs

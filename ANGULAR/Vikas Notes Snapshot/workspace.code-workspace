@@ -1,0 +1,11 @@
+{
+	"folders": [
+		{
+			"path": "../.."
+		},
+		{
+			"path": "../../../prediction_performance/avatar-webapp"
+		}
+	],
+	"settings": {}
+}
