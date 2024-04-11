@@ -2036,7 +2036,7 @@ Defining Dependency Providers
 useClass, useExisting, useValue, useFactory
 
 useCLass: helps with testing
-providers:[{provide: ServiceName, useClass: serviceClassName}
+providers:[{provide: ServiceName, useClass: serviceClassName}]
 providers: [serviceName] // if both are same
 
 
@@ -2087,6 +2087,69 @@ Platform Injector:  Environment Injector and Null Injector above root
 
 Element Injector
 ----------------
+
+- Angular creates ElementInjector hierarchies implicitly for each DOM element.
+@Component({
+  …
+  providers: [{ provide: ItemService, useValue: { name: 'lamp' } }]
+})
+export class TestComponent
+- ItemService is provided to TestComponent via ELement Injector
+
+-  Components and directives on the same element share an injector.
+-  Injector Search for a component/Directive
+
+
+                    Component Element Injector -> Parement Element Injector -> Root EI ->
+                     Environement Injector Hierarchy (root, appconfig, angular ...)
+
+
+
+Injector Resolution modifiers
+-----------------------------
+Types of modifiers
+@optional(), @skipSelf, @Host , @Self
+What to do if Angular doesn't find what you're looking for, that is @Optional()
+Where to start looking, that is @SkipSelf()
+Where to stop looking, @Host() and @Self()
+
+
+@Optional
+-----------
+If not provided will return Null not Error
+export class OptionalComponent {
+  constructor(@Optional() public optional?: OptionalService) {}
+}
+
+@Self
+------
+Only look at the current Element Injector. 
+Use with @Optional to avoid errors
+
+
+@Component({
+  selector: 'app-self-no-data',
+  templateUrl: './self-no-data.component.html',
+  styleUrls: ['./self-no-data.component.css']
+})
+export class SelfNoDataComponent {
+  constructor(@Self() @Optional() public leaf?: LeafService) { }
+}
+
+
+@skipSelf
+-----------
+@SkipSelf() is the opposite of @Self(). With @SkipSelf(), Angular starts its search for a service in the parent ElementInjector, rather than in the current one. 
+
+
+@Host()
+-------
+@Host() lets you designate a component as the last stop in the injector tree when searching for providers.
+
+Even if there is a service instance further up the tree, Angular won't continue looking. Use @Host() as follows:
+
+
+
 
 
 3. Observables and RxJs
